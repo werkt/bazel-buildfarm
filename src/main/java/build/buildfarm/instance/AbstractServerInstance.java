@@ -270,10 +270,6 @@ public abstract class AbstractServerInstance implements Instance {
       Stack<Digest> path,
       Set<Digest> visited,
       ImmutableSet.Builder<Digest> inputDigests) {
-    Preconditions.checkState(
-        directory != null,
-        MISSING_INPUT);
-
     Set<String> entryNames = new HashSet<>();
 
     String lastFileName = "";
@@ -330,7 +326,11 @@ public abstract class AbstractServerInstance implements Instance {
       Set<Digest> visited,
       ImmutableSet.Builder<Digest> inputDigests) {
     path.push(directoryDigest);
-    validateActionInputDirectory(expectDirectory(directoryDigest), path, visited, inputDigests);
+    Directory directory = expectDirectory(directoryDigest);
+    Preconditions.checkState(
+        directory != null,
+        MISSING_INPUT + ": Directory " + DigestUtil.toString(directoryDigest));
+    validateActionInputDirectory(directory, path, visited, inputDigests);
     path.pop();
     visited.add(directoryDigest);
   }
@@ -345,11 +345,10 @@ public abstract class AbstractServerInstance implements Instance {
     // A requested input (or the [Command][] of the [Action][]) was not found in
     // the [ContentAddressableStorage][].
     Iterable<Digest> missingBlobDigests = findMissingBlobs(inputDigests.build());
-    if (!Iterables.isEmpty(missingBlobDigests)) {
-      Preconditions.checkState(
-          Iterables.isEmpty(missingBlobDigests),
-          MISSING_INPUT);
-    }
+    Preconditions.checkState(
+        Iterables.isEmpty(missingBlobDigests),
+        MISSING_INPUT
+        + ": [" + String.join(", ", Iterables.transform(missingBlobDigests, digest -> DigestUtil.toString(digest))) + "]");
 
     // FIXME should input/output collisions (through directories) be another
     // invalid action?
