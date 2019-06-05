@@ -44,6 +44,7 @@ import build.buildfarm.common.DigestUtil.ActionKey;
 import build.buildfarm.common.function.InterruptingPredicate;
 import build.buildfarm.common.grpc.ByteStreamHelper;
 import build.buildfarm.common.grpc.Retrier;
+import build.buildfarm.common.grpc.RetryException;
 import build.buildfarm.common.grpc.StubWriteOutputStream;
 import build.buildfarm.instance.Instance;
 import build.buildfarm.v1test.OperationQueueGrpc;
@@ -55,6 +56,7 @@ import com.google.bytestream.ByteStreamGrpc.ByteStreamBlockingStub;
 import com.google.bytestream.ByteStreamGrpc.ByteStreamStub;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
@@ -355,12 +357,19 @@ public class StubInstance implements Instance {
 
   @Override
   public void match(Platform platform, InterruptingPredicate<Operation> onMatch) throws InterruptedException {
-    Operation operation = operationQueueBlockingStub.get()
-        .take(TakeOperationRequest.newBuilder()
+    TakeOperationRequest request = TakeOperationRequest.newBuilder()
         .setInstanceName(getName())
         .setPlatform(platform)
-        .build());
-    onMatch.test(operation);
+        .build();
+    try {
+      Operation operation = retrier.execute(() -> operationQueueBlockingStub.get().take(request));
+      onMatch.test(operation);
+    } catch (IOException e) {
+      if (e instanceof RetryException) {
+        Throwables.propagateIfInstanceOf(e.getCause(), RuntimeException.class);
+      }
+      Throwables.propagate(e);
+    }
   }
 
   @Override
