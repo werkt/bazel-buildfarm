@@ -143,6 +143,15 @@ class Executor implements Runnable {
     }
   }
 
+  private void errorUninterruptibly(OperationContext operationContext) {
+    try {
+      owner.error().put(operationContext);
+    } catch (InterruptedException e) {
+      logger.log(SEVERE, "interrupted while erroring " + operationContext.operation.getName(), e);
+      Thread.currentThread().interrupt();
+    }
+  }
+
   private long executePolled(
       Operation operation,
       Duration timeout,
@@ -181,7 +190,7 @@ class Executor implements Runnable {
     } catch (IOException e) {
       logger.log(SEVERE, "error executing operation " + operation.getName(), e);
       operationContext.poller.pause();
-      owner.error().put(operationContext);
+      errorUninterruptibly(operationContext);
       return 0;
     }
 
@@ -213,7 +222,7 @@ class Executor implements Runnable {
       // FIXME we need to release the action root
       workerContext.logInfo("Executor: Operation " + operation.getName() + " Failed to claim output");
 
-      owner.error().put(operationContext);
+      errorUninterruptibly(operationContext);
     }
     return stopwatch.elapsed(MICROSECONDS) - executeUSecs;
   }
@@ -223,29 +232,19 @@ class Executor implements Runnable {
     long stallUSecs = 0;
     Stopwatch stopwatch = Stopwatch.createStarted();
     String operationName = operationContext.operation.getName();
+    boolean wasInterrupted = false;
     try {
       stallUSecs = runInterruptible(stopwatch);
     } catch (InterruptedException e) {
       /* we can be interrupted when the poller fails */
-      try {
-        owner.error().put(operationContext);
-      } catch (InterruptedException errorEx) {
-        logger.log(SEVERE, "interrupted while erroring " + operationName, errorEx);
-      } finally {
-        Thread.currentThread().interrupt();
-      }
+      wasInterrupted = Thread.interrupted();
+      errorUninterruptibly(operationContext);
     } catch (Exception e) {
       logger.log(SEVERE, "errored during execution of " + operationName, e);
-      try {
-        owner.error().put(operationContext);
-      } catch (InterruptedException errorEx) {
-        logger.log(SEVERE, format("interrupted while erroring %s after error", operationName), errorEx);
-      } catch (Throwable t) {
-        logger.log(SEVERE, format("errored while erroring %s after error", operationName), t);
-      }
+      errorUninterruptibly(operationContext);
       throw e;
     } finally {
-      boolean wasInterrupted = Thread.interrupted();
+      wasInterrupted = Thread.interrupted() || wasInterrupted;
       try {
         owner.releaseExecutor(
             operationName,

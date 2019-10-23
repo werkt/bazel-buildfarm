@@ -44,7 +44,7 @@ public class ExecuteActionStage extends SuperscalarPipelineStage {
       public void put(OperationContext operationContext) throws InterruptedException {
         try {
           workerContext.destroyExecDir(operationContext.execDir);
-        } catch (IOException e) {
+        } catch (Exception e) {
           logger.log(SEVERE, "error while destroying action root " + operationContext.execDir, e);
         } finally {
           output.put(operationContext);

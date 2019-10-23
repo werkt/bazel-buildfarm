@@ -94,6 +94,8 @@ import com.google.protobuf.TextFormat;
 import io.grpc.Channel;
 import io.grpc.Deadline;
 import io.grpc.ManagedChannel;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.grpc.netty.NegotiationType;
 import io.grpc.netty.NettyChannelBuilder;
 import java.io.InputStream;
@@ -513,7 +515,14 @@ public class Worker {
           }
         };
         while (!dedupMatchListener.getMatched()) {
-          operationQueueInstance.match(config.getPlatform(), dedupMatchListener);
+          try {
+            operationQueueInstance.match(config.getPlatform(), dedupMatchListener);
+          } catch (StatusRuntimeException e) {
+            Status status = Status.fromThrowable(e);
+            if (!Retrier.DEFAULT_IS_RETRIABLE.test(status)) {
+              throw e;
+            }
+          }
         }
       }
 
