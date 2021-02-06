@@ -45,7 +45,6 @@ import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.concurrent.GuardedBy;
@@ -65,8 +64,9 @@ class WriteStreamObserver implements StreamObserver<WriteRequest> {
   private String name = null;
   private Write write = null;
   private Instance instance = null;
-  private final AtomicReference<Throwable> exception = new AtomicReference<>(null);
   private final AtomicBoolean wasReady = new AtomicBoolean(false);
+  @GuardedBy("this")
+  private Throwable exception = null;
   private long expectedCommittedSize = -1;
   private long earliestOffset = -1;
   private long requestCount = 0;
@@ -180,10 +180,11 @@ class WriteStreamObserver implements StreamObserver<WriteRequest> {
     }
   }
 
+  @GuardedBy("this")
   void commitActive(long committedSize) {
     WriteResponse response = WriteResponse.newBuilder().setCommittedSize(committedSize).build();
 
-    if (exception.compareAndSet(null, null)) {
+    if (exception == null) {
       try {
         logger.log(
             Level.FINER, format("delivering committed_size for %s of %d", name, committedSize));
@@ -252,8 +253,11 @@ class WriteStreamObserver implements StreamObserver<WriteRequest> {
         e);
   }
 
-  private boolean errorResponse(Throwable t) {
-    if (exception.compareAndSet(null, t)) {
+  // returns true if this is a novel exception for this call and
+  // we responded to the request with an error
+  private synchronized boolean errorResponse(Throwable t) {
+    if (exception == null) {
+      exception = t;
       boolean isEntryLimitException = t instanceof EntryLimitException;
       if (isEntryLimitException) {
         t = Status.OUT_OF_RANGE.withDescription(t.getMessage()).asException();
@@ -335,6 +339,7 @@ class WriteStreamObserver implements StreamObserver<WriteRequest> {
     }
   }
 
+  @GuardedBy("this")
   private void close() {
     logger.log(Level.FINER, format("closing stream due to finishWrite for %s", name));
     try {
@@ -368,6 +373,7 @@ class WriteStreamObserver implements StreamObserver<WriteRequest> {
     }
   }
 
+  @GuardedBy("this")
   private void requestNextIfReady(FeedbackOutputStream out) {
     if (out.isReady()) {
       requestNext.run();
@@ -376,6 +382,7 @@ class WriteStreamObserver implements StreamObserver<WriteRequest> {
     }
   }
 
+  @GuardedBy("this")
   private void requestNextIfReady() {
     try {
       requestNextIfReady(getOutput());
