@@ -466,6 +466,6 @@ public class ByteStreamService extends ByteStreamImplBase {
         deadlineAfter,
         deadlineAfterUnits,
         () -> serverCallStreamObserver.request(1),
-        responseObserver);
+        serverCallStreamObserver);
   }
 }

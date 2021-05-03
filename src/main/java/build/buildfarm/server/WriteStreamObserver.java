@@ -40,6 +40,7 @@ import com.google.protobuf.ByteString;
 import io.grpc.Context;
 import io.grpc.Context.CancellableContext;
 import io.grpc.Status;
+import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -56,7 +57,7 @@ class WriteStreamObserver implements StreamObserver<WriteRequest> {
   private final long deadlineAfter;
   private final TimeUnit deadlineAfterUnits;
   private final Runnable requestNext;
-  private final StreamObserver<WriteResponse> responseObserver;
+  private final ServerCallStreamObserver<WriteResponse> responseObserver;
   private final CancellableContext withCancellation;
 
   private boolean initialized = false;
@@ -77,13 +78,14 @@ class WriteStreamObserver implements StreamObserver<WriteRequest> {
       long deadlineAfter,
       TimeUnit deadlineAfterUnits,
       Runnable requestNext,
-      StreamObserver<WriteResponse> responseObserver) {
+      ServerCallStreamObserver<WriteResponse> responseObserver) {
     this.instances = instances;
     this.deadlineAfter = deadlineAfter;
     this.deadlineAfterUnits = deadlineAfterUnits;
     this.requestNext = requestNext;
     this.responseObserver = responseObserver;
     withCancellation = Context.current().withCancellation();
+    responseObserver.setOnCancelHandler(this::cancel);
   }
 
   @Override
@@ -419,16 +421,22 @@ class WriteStreamObserver implements StreamObserver<WriteRequest> {
     return out;
   }
 
+  private synchronized void cancel() {
+    try {
+      if (out != null) {
+        out.close();
+        out = null;
+      }
+    } catch (IOException e) {
+      logger.log(Level.SEVERE, "error closing output stream for cancellation", e);
+    }
+  }
+
   @Override
   public void onError(Throwable t) {
     Status status = Status.fromThrowable(t);
     if (initialized) {
-      try {
-        getOutput().close();
-      } catch (IOException e) {
-        logger.log(Level.SEVERE, "error closing output stream after error", e);
-      }
-      out = null;
+      cancel();
     } else {
       if (!withCancellation.isCancelled()) {
         logger.log(
