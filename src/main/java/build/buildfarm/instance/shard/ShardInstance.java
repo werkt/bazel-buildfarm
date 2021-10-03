@@ -1225,7 +1225,9 @@ public class ShardInstance extends AbstractServerInstance {
     Context previousContext = withDeadline.attach();
     try {
       ListenableFuture<T> future = super.expect(digest, parser, executor, requestMetadata);
-      future.addListener(() -> withDeadline.cancel(null), directExecutor());
+      future.addListener(() -> {
+        withDeadline.cancel(null);
+      }, directExecutor());
       return future;
     } catch (RuntimeException e) {
       withDeadline.cancel(null);
