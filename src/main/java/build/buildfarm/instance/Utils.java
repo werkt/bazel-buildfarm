@@ -17,6 +17,7 @@ package build.buildfarm.instance;
 import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 
+import build.bazel.remote.execution.v2.Compressor;
 import build.bazel.remote.execution.v2.Digest;
 import build.bazel.remote.execution.v2.RequestMetadata;
 import build.buildfarm.common.Write;
@@ -40,13 +41,14 @@ public final class Utils {
   private Utils() {}
 
   public static ByteString getBlob(
-      Instance instance, Digest blobDigest, RequestMetadata requestMetadata)
+      Instance instance, Compressor.Value compressor, Digest blobDigest, RequestMetadata requestMetadata)
       throws IOException, InterruptedException {
-    return getBlob(instance, blobDigest, /* offset=*/ 0, 60, TimeUnit.SECONDS, requestMetadata);
+    return getBlob(instance, compressor, blobDigest, /* offset=*/ 0, 60, TimeUnit.SECONDS, requestMetadata);
   }
 
   public static ByteString getBlob(
       Instance instance,
+      Compressor.Value compressor,
       Digest blobDigest,
       long offset,
       long deadlineAfter,
@@ -55,7 +57,7 @@ public final class Utils {
       throws IOException {
     try (InputStream in =
         instance.newBlobInput(
-            blobDigest, offset, deadlineAfter, deadlineAfterUnits, requestMetadata)) {
+            compressor, blobDigest, offset, deadlineAfter, deadlineAfterUnits, requestMetadata)) {
       return ByteString.readFrom(in);
     } catch (StatusRuntimeException e) {
       if (e.getStatus().equals(Status.NOT_FOUND)) {
@@ -73,6 +75,7 @@ public final class Utils {
   // TODO make this *actually* async with onReady for FeedbackOutputStream
   public static ListenableFuture<Digest> putBlobFuture(
       Instance instance,
+      Compressor.Value compressor,
       Digest digest,
       ByteString data,
       long writeDeadlineAfter,
@@ -84,7 +87,7 @@ public final class Utils {
     }
     SettableFuture<Digest> future = SettableFuture.create();
     try {
-      Write write = instance.getBlobWrite(digest, UUID.randomUUID(), requestMetadata);
+      Write write = instance.getBlobWrite(compressor, digest, UUID.randomUUID(), requestMetadata);
       // indicate that we know this write is novel
       write.reset();
       Futures.addCallback(
@@ -114,6 +117,7 @@ public final class Utils {
 
   public static Digest putBlob(
       Instance instance,
+      Compressor.Value compressor,
       Digest digest,
       ByteString blob,
       long writeDeadlineAfter,
@@ -121,9 +125,7 @@ public final class Utils {
       RequestMetadata requestMetadata)
       throws IOException, InterruptedException, StatusException {
     try {
-      return putBlobFuture(
-              instance, digest, blob, writeDeadlineAfter, writeDeadlineAfterUnits, requestMetadata)
-          .get();
+      return putBlobFuture(instance, compressor, digest, blob, writeDeadlineAfter, writeDeadlineAfterUnits, requestMetadata).get();
     } catch (ExecutionException e) {
       Throwable cause = e.getCause();
       if (cause instanceof IOException) {
