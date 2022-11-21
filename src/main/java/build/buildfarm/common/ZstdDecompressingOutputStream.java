@@ -17,8 +17,10 @@ package build.buildfarm.common;
 
 import build.buildfarm.common.io.FeedbackOutputStream;
 import com.github.luben.zstd.ZstdInputStreamNoFinalizer;
+import com.google.common.io.ByteStreams;
 import com.google.protobuf.ByteString;
 import java.io.ByteArrayInputStream;
+import java.io.SequenceInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -26,8 +28,8 @@ import java.io.OutputStream;
 /** An {@link OutputStream} that use zstd to decompress the content. */
 public final class ZstdDecompressingOutputStream extends FeedbackOutputStream {
   private final OutputStream out;
-  private ByteArrayInputStream inner;
-  private final ZstdInputStreamNoFinalizer zis;
+  private InputStream inner = null;
+  private final InputStream zis;
 
   public ZstdDecompressingOutputStream(OutputStream out) throws IOException {
     this.out = out;
@@ -35,12 +37,12 @@ public final class ZstdDecompressingOutputStream extends FeedbackOutputStream {
         new ZstdInputStreamNoFinalizer(
                 new InputStream() {
                   @Override
-                  public int read() {
+                  public int read() throws IOException {
                     return inner.read();
                   }
 
                   @Override
-                  public int read(byte[] b, int off, int len) {
+                  public int read(byte[] b, int off, int len) throws IOException {
                     return inner.read(b, off, len);
                   }
                 })
@@ -59,9 +61,16 @@ public final class ZstdDecompressingOutputStream extends FeedbackOutputStream {
 
   @Override
   public void write(byte[] b, int off, int len) throws IOException {
-    inner = new ByteArrayInputStream(b, off, len);
-    byte[] data = ByteString.readFrom(zis).toByteArray();
-    out.write(data, 0, data.length);
+    InputStream compressed = new ByteArrayInputStream(b, off, len);
+    if (inner != null) {
+      inner = new SequenceInputStream(inner, compressed);
+    } else {
+      inner = compressed;
+    }
+    ByteStreams.copy(zis, out);
+    if (inner.available() == 0) {
+      inner = null;
+    }
   }
 
   @Override
