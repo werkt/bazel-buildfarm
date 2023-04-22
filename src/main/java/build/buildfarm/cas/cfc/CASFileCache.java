@@ -2865,8 +2865,9 @@ public abstract class CASFileCache implements ContentAddressableStorage {
 
         Entry existingEntry = null;
         boolean inserted = false;
+        Path path = CASFileCache.this.getPath(key);
         try {
-          Files.createLink(CASFileCache.this.getPath(key), writePath);
+          Files.createLink(path, writePath);
           existingEntry = storage.putIfAbsent(key, entry);
           inserted = existingEntry == null;
         } catch (FileAlreadyExistsException e) {
@@ -2882,10 +2883,15 @@ public abstract class CASFileCache implements ContentAddressableStorage {
         if (!inserted) {
           while (existingEntry == null && attempts-- != 0) {
             existingEntry = storage.get(key);
-            try {
-              MILLISECONDS.sleep(10);
-            } catch (InterruptedException intEx) {
-              throw new IOException(intEx);
+            if (existingEntry == null) {
+              if (!Files.exists(path)) {
+                throw new IOException("existing entry " + key + " was removed after discharge");
+              }
+              try {
+                MILLISECONDS.sleep(10);
+              } catch (InterruptedException intEx) {
+                throw new IOException(intEx);
+              }
             }
           }
 
@@ -2896,6 +2902,7 @@ public abstract class CASFileCache implements ContentAddressableStorage {
 
         if (existingEntry != null) {
           log.log(Level.FINE, "lost the race to insert " + key);
+          // this has its own risk for expiry, but may be mitigated with a false return
           if (!referenceIfExists(key)) {
             // we would lose our accountability and have a presumed reference if we returned
             throw new IllegalStateException("storage conflict with existing key for " + key);
