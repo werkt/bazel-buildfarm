@@ -451,28 +451,38 @@ class Executor {
       return DockerExecutor.runActionWithDocker(dockerClient, settings, resultBuilder);
     }
 
+    int retriesRemaining = 10;
+    boolean shouldRetryProcessStart = true;
     long startNanoTime = System.nanoTime();
-    Process process;
-    try {
-      process = ProcessUtils.threadSafeStart(processBuilder);
-      process.getOutputStream().close();
-    } catch (IOException e) {
-      log.log(Level.SEVERE, format("error starting process for %s", operationName), e);
-      // again, should we do something else here??
-      resultBuilder.setExitCode(INCOMPLETE_EXIT_CODE);
-      // The openjdk IOException for an exec failure here includes the working
-      // directory of the execution. Drop it and reconstruct without it if we
-      // can get the cause.
-      Throwable t = e.getCause();
-      String message;
-      if (t != null) {
-        message =
-            "Cannot run program \"" + processBuilder.command().get(0) + "\": " + t.getMessage();
-      } else {
-        message = e.getMessage();
+    Process process = null;
+    while (process == null) {
+      try {
+        process = ProcessUtils.threadSafeStart(processBuilder);
+        process.getOutputStream().close();
+      } catch (IOException e) {
+        shouldRetryProcessStart = --retriesRemaining > 0 && e.getMessage().indexOf("Resource temporarily unavailable") != -1;
+        if (!shouldRetryProcessStart) {
+          log.log(Level.SEVERE, format("error starting process for %s", operationName), e);
+          // again, should we do something else here??
+          resultBuilder.setExitCode(INCOMPLETE_EXIT_CODE);
+          // The openjdk IOException for an exec failure here includes the working
+          // directory of the execution. Drop it and reconstruct without it if we
+          // can get the cause.
+          Throwable t = e.getCause();
+          String message;
+          if (t != null) {
+            message =
+                "Cannot run program \"" + processBuilder.command().get(0) + "\": " + t.getMessage();
+          } else {
+            message = e.getMessage();
+          }
+          resultBuilder.setStderrRaw(ByteString.copyFromUtf8(message));
+          return Code.INVALID_ARGUMENT;
+        }
+        // currently retrying
+        // maybe some backoff, maybe just wait for a second for things to cool down
+        TimeUnit.SECONDS.sleep(1);
       }
-      resultBuilder.setStderrRaw(ByteString.copyFromUtf8(message));
-      return Code.INVALID_ARGUMENT;
     }
 
     // Create threads to extract stdout/stderr from a process.
