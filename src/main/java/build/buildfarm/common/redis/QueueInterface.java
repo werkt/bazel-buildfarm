@@ -15,7 +15,7 @@
 package build.buildfarm.common.redis;
 
 import build.buildfarm.common.StringVisitor;
-import redis.clients.jedis.JedisCluster;
+import redis.clients.jedis.UnifiedJedis;
 
 /**
  * @class QueueInterface
@@ -27,14 +27,14 @@ public abstract class QueueInterface {
    * @details Adds the value into the backend rdered set.
    * @param val The value to push onto the priority queue.
    */
-  abstract void push(JedisCluster jedis, String val);
+  abstract void push(UnifiedJedis jedis, String val);
 
   /**
    * @brief Push a value onto the queue with defined priority.
    * @details Adds the value into the backend rdered set.
    * @param val The value to push onto the priority queue.
    */
-  abstract void push(JedisCluster jedis, String val, double priority);
+  abstract void push(UnifiedJedis jedis, String val, double priority);
 
   /**
    * @brief Remove element from dequeue.
@@ -43,7 +43,7 @@ public abstract class QueueInterface {
    * @return Whether or not the value was removed.
    * @note Suggested return identifier: wasRemoved.
    */
-  abstract boolean removeFromDequeue(JedisCluster jedis, String val);
+  abstract boolean removeFromDequeue(UnifiedJedis jedis, String val);
 
   /**
    * @brief Remove all elements that match from queue.
@@ -52,7 +52,7 @@ public abstract class QueueInterface {
    * @return Whether or not the value was removed.
    * @note Suggested return identifier: wasRemoved.
    */
-  abstract boolean removeAll(JedisCluster jedis, String val);
+  abstract boolean removeAll(UnifiedJedis jedis, String val);
 
   /**
    * @brief Pop element into internal dequeue and return value.
@@ -64,7 +64,7 @@ public abstract class QueueInterface {
    * @note Overloaded.
    * @note Suggested return identifier: val.
    */
-  abstract String dequeue(JedisCluster jedis, int timeout_s) throws InterruptedException;
+  abstract String dequeue(UnifiedJedis jedis, int timeout_s) throws InterruptedException;
 
   /**
    * @brief Pop element into internal dequeue and return value.
@@ -73,7 +73,7 @@ public abstract class QueueInterface {
    * @return The value of the transfered element. null if nothing was dequeued.
    * @note Suggested return identifier: val.
    */
-  abstract String nonBlockingDequeue(JedisCluster jedis) throws InterruptedException;
+  abstract String nonBlockingDequeue(UnifiedJedis jedis) throws InterruptedException;
 
   /**
    * @brief Get name.
@@ -98,7 +98,7 @@ public abstract class QueueInterface {
    * @return The current length of the queue.
    * @note Suggested return identifier: length.
    */
-  abstract long size(JedisCluster jedis);
+  abstract long size(UnifiedJedis jedis);
 
   /**
    * @brief Visit each element in the queue.
@@ -106,12 +106,12 @@ public abstract class QueueInterface {
    * @param visitor A visitor for each visited element in the queue.
    * @note Overloaded.
    */
-  abstract void visit(JedisCluster jedis, StringVisitor visitor);
+  abstract void visit(UnifiedJedis jedis, StringVisitor visitor);
 
   /**
    * @brief Visit each element in the dequeue.
    * @details Enacts a visitor over each element in the dequeue.
    * @param visitor A visitor for each visited element in the queue.
    */
-  abstract void visitDequeue(JedisCluster jedis, StringVisitor visitor);
+  abstract void visitDequeue(UnifiedJedis jedis, StringVisitor visitor);
 }

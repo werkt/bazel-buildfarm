@@ -17,8 +17,7 @@ package build.buildfarm.common.redis;
 import build.buildfarm.common.StringVisitor;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
-import redis.clients.jedis.JedisCluster;
+import redis.clients.jedis.UnifiedJedis;
 
 /**
  * @class RedisQueue
@@ -97,7 +96,7 @@ public class RedisPriorityQueue extends QueueInterface {
    * @param val The value to push onto the priority queue.
    */
   @Override
-  public void push(JedisCluster jedis, String val) {
+  public void push(UnifiedJedis jedis, String val) {
     push(jedis, val, 0);
   }
 
@@ -108,7 +107,7 @@ public class RedisPriorityQueue extends QueueInterface {
    * @param priority The priority of action 0 means highest
    */
   @Override
-  public void push(JedisCluster jedis, String val, double priority) {
+  public void push(UnifiedJedis jedis, String val, double priority) {
     jedis.zadd(name, priority, time.getNanos() + ":" + val);
   }
 
@@ -120,7 +119,7 @@ public class RedisPriorityQueue extends QueueInterface {
    * @note Suggested return identifier: wasRemoved.
    */
   @Override
-  public boolean removeFromDequeue(JedisCluster jedis, String val) {
+  public boolean removeFromDequeue(UnifiedJedis jedis, String val) {
     return jedis.lrem(getDequeueName(), -1, val) != 0;
   }
 
@@ -132,7 +131,7 @@ public class RedisPriorityQueue extends QueueInterface {
    * @note Suggested return identifier: wasRemoved.
    */
   @Override
-  public boolean removeAll(JedisCluster jedis, String val) {
+  public boolean removeAll(UnifiedJedis jedis, String val) {
     return jedis.zrem(name, val) != 0;
   }
 
@@ -147,7 +146,7 @@ public class RedisPriorityQueue extends QueueInterface {
    * @note Suggested return identifier: val.
    */
   @Override
-  public String dequeue(JedisCluster jedis, int timeout_s) throws InterruptedException {
+  public String dequeue(UnifiedJedis jedis, int timeout_s) throws InterruptedException {
     int maxAttempts = (int) (timeout_s / (pollIntervalMillis / 1000.0));
     List<String> args = Arrays.asList(name, getDequeueName(), "true");
     String val;
@@ -170,7 +169,7 @@ public class RedisPriorityQueue extends QueueInterface {
    * @note Suggested return identifier: val.
    */
   @Override
-  public String nonBlockingDequeue(JedisCluster jedis) throws InterruptedException {
+  public String nonBlockingDequeue(UnifiedJedis jedis) throws InterruptedException {
     List<String> args = Arrays.asList(name, getDequeueName());
     Object obj_val = jedis.eval(script, keys, args);
     String val = String.valueOf(obj_val);
@@ -212,7 +211,7 @@ public class RedisPriorityQueue extends QueueInterface {
    * @note Suggested return identifier: length.
    */
   @Override
-  public long size(JedisCluster jedis) {
+  public long size(UnifiedJedis jedis) {
     return jedis.zcard(name);
   }
 
@@ -223,7 +222,7 @@ public class RedisPriorityQueue extends QueueInterface {
    * @note Overloaded.
    */
   @Override
-  public void visit(JedisCluster jedis, StringVisitor visitor) {
+  public void visit(UnifiedJedis jedis, StringVisitor visitor) {
     visit(jedis, name, visitor);
   }
 
@@ -233,7 +232,7 @@ public class RedisPriorityQueue extends QueueInterface {
    * @param visitor A visitor for each visited element in the queue.
    */
   @Override
-  public void visitDequeue(JedisCluster jedis, StringVisitor visitor) {
+  public void visitDequeue(UnifiedJedis jedis, StringVisitor visitor) {
     int listPageSize = 10000;
     int index = 0;
     int nextIndex = listPageSize;
@@ -256,11 +255,11 @@ public class RedisPriorityQueue extends QueueInterface {
    * @param visitor A visitor for each visited element in the queue.
    * @note Overloaded.
    */
-  private void visit(JedisCluster jedis, String queueName, StringVisitor visitor) {
+  private void visit(UnifiedJedis jedis, String queueName, StringVisitor visitor) {
     int listPageSize = 10000;
     int index = 0;
     int nextIndex = listPageSize;
-    Set<String> entries;
+    List<String> entries;
 
     do {
       entries = jedis.zrange(queueName, index, nextIndex - 1);

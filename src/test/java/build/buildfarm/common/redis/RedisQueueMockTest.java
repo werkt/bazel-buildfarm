@@ -16,9 +16,12 @@ package build.buildfarm.common.redis;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static redis.clients.jedis.args.ListDirection.LEFT;
+import static redis.clients.jedis.args.ListDirection.RIGHT;
 
 import build.buildfarm.common.StringVisitor;
 import java.util.ArrayList;
@@ -174,7 +177,8 @@ public class RedisQueueMockTest {
   @Test
   public void dequeueElementCanBeDequeuedWithTimeout() throws Exception {
     // ARRANGE
-    when(redis.brpoplpush("test", "test_dequeue", 1)).thenReturn("foo");
+    when(redis.blmove(eq("test"), eq("test_dequeue"), eq(RIGHT), eq(LEFT), any(double.class)))
+        .thenReturn("foo");
     RedisQueue queue = new RedisQueue("test");
 
     // ACT
@@ -191,7 +195,8 @@ public class RedisQueueMockTest {
   @Test
   public void dequeueElementIsNotDequeuedIfTimeRunsOut() throws Exception {
     // ARRANGE
-    when(redis.brpoplpush("test", "test_dequeue", 1)).thenReturn(null);
+    when(redis.blmove(eq("test"), eq("test_dequeue"), eq(RIGHT), eq(LEFT), any(double.class)))
+        .thenReturn(null);
     RedisQueue queue = new RedisQueue("test");
 
     // ACT
@@ -208,7 +213,8 @@ public class RedisQueueMockTest {
   @Test
   public void dequeueInterrupt() throws Exception {
     // ARRANGE
-    when(redis.brpoplpush("test", "test_dequeue", 1)).thenReturn(null);
+    when(redis.blmove(eq("test"), eq("test_dequeue"), eq(RIGHT), eq(LEFT), any(double.class)))
+        .thenReturn(null);
     RedisQueue queue = new RedisQueue("test");
 
     // ACT
@@ -231,7 +237,7 @@ public class RedisQueueMockTest {
   @Test
   public void nonBlockingDequeueElementCanBeDequeued() throws Exception {
     // ARRANGE
-    when(redis.rpoplpush("test", "test_dequeue")).thenReturn("foo");
+    when(redis.lmove("test", "test_dequeue", RIGHT, LEFT)).thenReturn("foo");
     RedisQueue queue = new RedisQueue("test");
 
     // ACT

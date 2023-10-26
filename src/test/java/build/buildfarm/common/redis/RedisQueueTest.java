@@ -26,7 +26,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import redis.clients.jedis.JedisCluster;
+import redis.clients.jedis.UnifiedJedis;
 
 /**
  * @class RedisQueueTest
@@ -40,7 +40,7 @@ import redis.clients.jedis.JedisCluster;
 @RunWith(JUnit4.class)
 public class RedisQueueTest {
   private BuildfarmConfigs configs = BuildfarmConfigs.getInstance();
-  private JedisCluster redis;
+  private UnifiedJedis redis;
 
   @Before
   public void setUp() throws Exception {

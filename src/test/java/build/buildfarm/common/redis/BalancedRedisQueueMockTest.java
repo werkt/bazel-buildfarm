@@ -16,9 +16,12 @@ package build.buildfarm.common.redis;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static redis.clients.jedis.args.ListDirection.LEFT;
+import static redis.clients.jedis.args.ListDirection.RIGHT;
 
 import build.buildfarm.common.StringVisitor;
 import build.buildfarm.common.config.Queue;
@@ -111,7 +114,7 @@ public class BalancedRedisQueueMockTest {
   @Test
   public void dequeueExponentialBackoffElementDequeuedOnNonBlock() throws Exception {
     // MOCK
-    when(redis.rpoplpush(any(String.class), any(String.class))).thenReturn("foo");
+    when(redis.lmove(any(String.class), any(String.class), eq(RIGHT), eq(LEFT))).thenReturn("foo");
 
     // ARRANGE
     BalancedRedisQueue queue = new BalancedRedisQueue("test", ImmutableList.of());
@@ -129,8 +132,9 @@ public class BalancedRedisQueueMockTest {
   @Test
   public void dequeueExponentialBackoffElementDequeuedOnBlock() throws Exception {
     // MOCK
-    when(redis.rpoplpush(any(String.class), any(String.class))).thenReturn(null);
-    when(redis.brpoplpush(any(String.class), any(String.class), any(int.class))).thenReturn("foo");
+    when(redis.lmove(any(String.class), any(String.class), eq(RIGHT), eq(LEFT))).thenReturn(null);
+    when(redis.blmove(any(String.class), any(String.class), eq(RIGHT), eq(LEFT), any(double.class)))
+        .thenReturn("foo");
 
     // ARRANGE
     BalancedRedisQueue queue = new BalancedRedisQueue("test", ImmutableList.of());

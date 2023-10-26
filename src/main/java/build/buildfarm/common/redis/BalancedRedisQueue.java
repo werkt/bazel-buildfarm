@@ -20,7 +20,7 @@ import build.buildfarm.v1test.QueueStatus;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import redis.clients.jedis.JedisCluster;
+import redis.clients.jedis.UnifiedJedis;
 
 /**
  * @class BalancedRedisQueue
@@ -152,7 +152,7 @@ public class BalancedRedisQueue {
    * @details Adds the value into one of the internal backend redis queues.
    * @param val The value to push onto the queue.
    */
-  public void push(JedisCluster jedis, String val) {
+  public void push(UnifiedJedis jedis, String val) {
     queues.get(roundRobinPushIndex()).push(jedis, val);
   }
 
@@ -161,7 +161,7 @@ public class BalancedRedisQueue {
    * @details Adds the value into one of the internal backend redis queues.
    * @param val The value to push onto the queue.
    */
-  public void push(JedisCluster jedis, String val, double priority) {
+  public void push(UnifiedJedis jedis, String val, double priority) {
     queues.get(roundRobinPushIndex()).push(jedis, val, priority);
   }
 
@@ -172,7 +172,7 @@ public class BalancedRedisQueue {
    * @return Whether or not the value was removed.
    * @note Suggested return identifier: wasRemoved.
    */
-  public boolean removeFromDequeue(JedisCluster jedis, String val) {
+  public boolean removeFromDequeue(UnifiedJedis jedis, String val) {
     for (QueueInterface queue : partialIterationQueueOrder()) {
       if (queue.removeFromDequeue(jedis, val)) {
         return true;
@@ -189,7 +189,7 @@ public class BalancedRedisQueue {
    * @return The value of the transfered element. null if the thread was interrupted.
    * @note Suggested return identifier: val.
    */
-  public String dequeue(JedisCluster jedis) throws InterruptedException {
+  public String dequeue(UnifiedJedis jedis) throws InterruptedException {
     // The conditions of this algorithm are as followed:
     // - from a client's perspective we want to block indefinitely.
     //   (so this function should not return null under any normal circumstances.)
@@ -225,6 +225,11 @@ public class BalancedRedisQueue {
         return val;
       }
 
+      // not quite immediate yet...
+      if (Thread.currentThread().isInterrupted()) {
+        throw new InterruptedException();
+      }
+
       if (currentPopQueue == startQueue) {
         // advance timeout if blocking on queue and not at max each queue cycle
         if (blocking) {
@@ -242,7 +247,7 @@ public class BalancedRedisQueue {
    * @return The value of the transfered element. null if queue is empty or thread was interrupted.
    * @note Suggested return identifier: val.
    */
-  public String nonBlockingDequeue(JedisCluster jedis) throws InterruptedException {
+  public String nonBlockingDequeue(UnifiedJedis jedis) throws InterruptedException {
     QueueInterface queue = queues.get(roundRobinPopIndex());
     return queue.nonBlockingDequeue(jedis);
   }
@@ -306,7 +311,7 @@ public class BalancedRedisQueue {
    * @return The current length of the queue.
    * @note Suggested return identifier: length.
    */
-  public long size(JedisCluster jedis) {
+  public long size(UnifiedJedis jedis) {
     // the accumulated size of all of the queues
     long size = 0;
     for (QueueInterface queue : queues) {
@@ -321,7 +326,7 @@ public class BalancedRedisQueue {
    * @return The current status of the queue.
    * @note Suggested return identifier: status.
    */
-  public QueueStatus status(JedisCluster jedis) {
+  public QueueStatus status(UnifiedJedis jedis) {
     // get properties
     long size = size(jedis);
     List<Long> sizes = new ArrayList<>();
@@ -342,7 +347,7 @@ public class BalancedRedisQueue {
    * @details Enacts a visitor over each element in the queue.
    * @param visitor A visitor for each visited element in the queue.
    */
-  public void visit(JedisCluster jedis, StringVisitor visitor) {
+  public void visit(UnifiedJedis jedis, StringVisitor visitor) {
     for (QueueInterface queue : fullIterationQueueOrder()) {
       queue.visit(jedis, visitor);
     }
@@ -353,7 +358,7 @@ public class BalancedRedisQueue {
    * @details Enacts a visitor over each element in the dequeue.
    * @param visitor A visitor for each visited element in the queue.
    */
-  public void visitDequeue(JedisCluster jedis, StringVisitor visitor) {
+  public void visitDequeue(UnifiedJedis jedis, StringVisitor visitor) {
     for (QueueInterface queue : fullIterationQueueOrder()) {
       queue.visitDequeue(jedis, visitor);
     }
@@ -367,7 +372,7 @@ public class BalancedRedisQueue {
    * @return Whether or not the queues values are evenly distributed by internal queues.
    * @note Suggested return identifier: isEvenlyDistributed.
    */
-  public boolean isEvenlyDistributed(JedisCluster jedis) {
+  public boolean isEvenlyDistributed(UnifiedJedis jedis) {
     long size = queues.get(0).size(jedis);
     for (QueueInterface queue : partialIterationQueueOrder()) {
       if (queue.size(jedis) != size) {
@@ -385,7 +390,7 @@ public class BalancedRedisQueue {
    * @param jedis Jedis cluster client.
    * @return Whether are not a new element can be added to the queue based on its current size.
    */
-  public boolean canQueue(JedisCluster jedis) {
+  public boolean canQueue(UnifiedJedis jedis) {
     return maxQueueSize < 0 || size(jedis) < maxQueueSize;
   }
 

@@ -312,7 +312,7 @@ public class RedisPriorityQueueMockTest {
                     "element 6",
                     "element 7",
                     "element 8")
-                .collect(Collectors.toSet()));
+                .collect(Collectors.toList()));
 
     // ARRANGE
     RedisPriorityQueue queue = new RedisPriorityQueue("test");

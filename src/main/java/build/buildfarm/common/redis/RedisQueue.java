@@ -14,9 +14,12 @@
 
 package build.buildfarm.common.redis;
 
+import static redis.clients.jedis.args.ListDirection.LEFT;
+import static redis.clients.jedis.args.ListDirection.RIGHT;
+
 import build.buildfarm.common.StringVisitor;
 import java.util.List;
-import redis.clients.jedis.JedisCluster;
+import redis.clients.jedis.UnifiedJedis;
 
 /**
  * @class RedisQueue
@@ -44,7 +47,7 @@ public class RedisQueue extends QueueInterface {
   public RedisQueue(String name) {
     // In order for dequeue properly, the queue needs to have a hashtag.  Otherwise it will error
     // with: "No way to dispatch this command to Redis Cluster because keys have different slots."
-    // when trying to brpoplpush. If no hashtag was given we provide a default.
+    // when trying to blmove. If no hashtag was given we provide a default.
     this.name = name;
   }
 
@@ -53,7 +56,7 @@ public class RedisQueue extends QueueInterface {
    * @details Adds the value into the backend redis queue.
    * @param val The value to push onto the queue.
    */
-  public void push(JedisCluster jedis, String val) {
+  public void push(UnifiedJedis jedis, String val) {
     push(jedis, val, 1);
   }
 
@@ -62,7 +65,7 @@ public class RedisQueue extends QueueInterface {
    * @details Adds the value into the backend redis queue.
    * @param val The value to push onto the queue.
    */
-  public void push(JedisCluster jedis, String val, double priority) {
+  public void push(UnifiedJedis jedis, String val, double priority) {
     jedis.lpush(name, val);
   }
 
@@ -73,7 +76,7 @@ public class RedisQueue extends QueueInterface {
    * @return Whether the value was removed.
    * @note Suggested return identifier: wasRemoved.
    */
-  public boolean removeFromDequeue(JedisCluster jedis, String val) {
+  public boolean removeFromDequeue(UnifiedJedis jedis, String val) {
     return jedis.lrem(getDequeueName(), -1, val) != 0;
   }
 
@@ -84,7 +87,7 @@ public class RedisQueue extends QueueInterface {
    * @return Whether the value was removed.
    * @note Suggested return identifier: wasRemoved.
    */
-  public boolean removeAll(JedisCluster jedis, String val) {
+  public boolean removeAll(UnifiedJedis jedis, String val) {
     return jedis.lrem(name, 0, val) != 0;
   }
 
@@ -98,12 +101,10 @@ public class RedisQueue extends QueueInterface {
    * @note Overloaded.
    * @note Suggested return identifier: val.
    */
-  public String dequeue(JedisCluster jedis, int timeout_s) throws InterruptedException {
-    for (int i = 0; i < timeout_s; ++i) {
-      String val = jedis.brpoplpush(name, getDequeueName(), 1);
-      if (val != null) {
-        return val;
-      }
+  public String dequeue(UnifiedJedis jedis, int timeout_s) throws InterruptedException {
+    String val = jedis.blmove(name, getDequeueName(), RIGHT, LEFT, timeout_s);
+    if (val != null) {
+      return val;
     }
     return null;
   }
@@ -115,8 +116,8 @@ public class RedisQueue extends QueueInterface {
    * @return The value of the transfered element. null if nothing was dequeued.
    * @note Suggested return identifier: val.
    */
-  public String nonBlockingDequeue(JedisCluster jedis) throws InterruptedException {
-    String val = jedis.rpoplpush(name, getDequeueName());
+  public String nonBlockingDequeue(UnifiedJedis jedis) throws InterruptedException {
+    String val = jedis.lmove(name, getDequeueName(), RIGHT, LEFT);
     if (val != null) {
       return val;
     }
@@ -153,7 +154,7 @@ public class RedisQueue extends QueueInterface {
    * @return The current length of the queue.
    * @note Suggested return identifier: length.
    */
-  public long size(JedisCluster jedis) {
+  public long size(UnifiedJedis jedis) {
     return jedis.llen(name);
   }
 
@@ -163,7 +164,7 @@ public class RedisQueue extends QueueInterface {
    * @param visitor A visitor for each visited element in the queue.
    * @note Overloaded.
    */
-  public void visit(JedisCluster jedis, StringVisitor visitor) {
+  public void visit(UnifiedJedis jedis, StringVisitor visitor) {
     visit(jedis, name, visitor);
   }
 
@@ -172,7 +173,7 @@ public class RedisQueue extends QueueInterface {
    * @details Enacts a visitor over each element in the dequeue.
    * @param visitor A visitor for each visited element in the queue.
    */
-  public void visitDequeue(JedisCluster jedis, StringVisitor visitor) {
+  public void visitDequeue(UnifiedJedis jedis, StringVisitor visitor) {
     visit(jedis, getDequeueName(), visitor);
   }
 
@@ -183,7 +184,7 @@ public class RedisQueue extends QueueInterface {
    * @param visitor A visitor for each visited element in the queue.
    * @note Overloaded.
    */
-  private void visit(JedisCluster jedis, String queueName, StringVisitor visitor) {
+  private void visit(UnifiedJedis jedis, String queueName, StringVisitor visitor) {
     int listPageSize = 10000;
 
     int index = 0;
