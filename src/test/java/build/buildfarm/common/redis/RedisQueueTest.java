@@ -197,17 +197,17 @@ public class RedisQueueTest {
     assertThat(queue.size(redis)).isEqualTo(5);
     queue.push(redis, "baz");
     assertThat(queue.size(redis)).isEqualTo(6);
-    queue.dequeue(redis, 1);
+    queue.dequeue(redis, 1000);
     assertThat(queue.size(redis)).isEqualTo(5);
-    queue.dequeue(redis, 1);
+    queue.dequeue(redis, 1000);
     assertThat(queue.size(redis)).isEqualTo(4);
-    queue.dequeue(redis, 1);
+    queue.dequeue(redis, 1000);
     assertThat(queue.size(redis)).isEqualTo(3);
-    queue.dequeue(redis, 1);
+    queue.dequeue(redis, 1000);
     assertThat(queue.size(redis)).isEqualTo(2);
-    queue.dequeue(redis, 1);
+    queue.dequeue(redis, 1000);
     assertThat(queue.size(redis)).isEqualTo(1);
-    queue.dequeue(redis, 1);
+    queue.dequeue(redis, 1000);
     assertThat(queue.size(redis)).isEqualTo(0);
   }
 

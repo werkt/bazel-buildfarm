@@ -59,12 +59,12 @@ public abstract class QueueInterface {
    * @details This pops the element from one queue atomically into an internal list called the
    *     dequeue. It will wait until the timeout has expired. Null is returned if the timeout has
    *     expired.
-   * @param timeout_s Timeout to wait if there is no item to dequeue. (units: seconds (s))
+   * @param timeout_ms Timeout to wait if there is no item to dequeue. (units: milliseconds (ms))
    * @return The value of the transfered element. null if the thread was interrupted.
    * @note Overloaded.
    * @note Suggested return identifier: val.
    */
-  abstract String dequeue(UnifiedJedis jedis, int timeout_s) throws InterruptedException;
+  abstract String dequeue(UnifiedJedis jedis, int timeout_ms) throws InterruptedException;
 
   /**
    * @brief Pop element into internal dequeue and return value.

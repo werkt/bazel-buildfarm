@@ -200,17 +200,17 @@ public class RedisPriorityQueueTest {
     assertThat(queue.size(redis)).isEqualTo(5);
     queue.push(redis, "baz4");
     assertThat(queue.size(redis)).isEqualTo(6);
-    queue.dequeue(redis, 1);
+    queue.dequeue(redis, 1000);
     assertThat(queue.size(redis)).isEqualTo(5);
-    queue.dequeue(redis, 1);
+    queue.dequeue(redis, 1000);
     assertThat(queue.size(redis)).isEqualTo(4);
-    queue.dequeue(redis, 1);
+    queue.dequeue(redis, 1000);
     assertThat(queue.size(redis)).isEqualTo(3);
-    queue.dequeue(redis, 1);
+    queue.dequeue(redis, 1000);
     assertThat(queue.size(redis)).isEqualTo(2);
-    queue.dequeue(redis, 1);
+    queue.dequeue(redis, 1000);
     assertThat(queue.size(redis)).isEqualTo(1);
-    queue.dequeue(redis, 1);
+    queue.dequeue(redis, 1000);
     assertThat(queue.size(redis)).isEqualTo(0);
   }
 
@@ -236,22 +236,22 @@ public class RedisPriorityQueueTest {
     assertThat(queue.size(redis)).isEqualTo(5);
     queue.push(redis, "baz4", 1);
     assertThat(queue.size(redis)).isEqualTo(6);
-    val = queue.dequeue(redis, 1);
+    val = queue.dequeue(redis, 1000);
     assertThat(val).isEqualTo("bar");
     assertThat(queue.size(redis)).isEqualTo(5);
-    val = queue.dequeue(redis, 1);
+    val = queue.dequeue(redis, 1000);
     assertThat(val).isEqualTo("baz2");
     assertThat(queue.size(redis)).isEqualTo(4);
-    val = queue.dequeue(redis, 1);
+    val = queue.dequeue(redis, 1000);
     assertThat(val).isEqualTo("baz4");
     assertThat(queue.size(redis)).isEqualTo(3);
-    val = queue.dequeue(redis, 1);
+    val = queue.dequeue(redis, 1000);
     assertThat(val).isEqualTo("foo");
     assertThat(queue.size(redis)).isEqualTo(2);
-    val = queue.dequeue(redis, 1);
+    val = queue.dequeue(redis, 1000);
     assertThat(val).isEqualTo("baz3");
     assertThat(queue.size(redis)).isEqualTo(1);
-    val = queue.dequeue(redis, 1);
+    val = queue.dequeue(redis, 1000);
     assertThat(val).isEqualTo("baz");
     assertThat(queue.size(redis)).isEqualTo(0);
   }
@@ -265,7 +265,7 @@ public class RedisPriorityQueueTest {
     RedisPriorityQueue queue = new RedisPriorityQueue("test");
 
     Instant start = Instant.now();
-    String val = queue.dequeue(redis, 1);
+    String val = queue.dequeue(redis, 1000);
     Instant finish = Instant.now();
 
     long timeElapsed = Duration.between(start, finish).toMillis();
@@ -292,21 +292,21 @@ public class RedisPriorityQueueTest {
     queue.push(redis, "baz-2", 2);
     queue.push(redis, "foo-4", 4);
 
-    val = queue.dequeue(redis, 1);
+    val = queue.dequeue(redis, 1000);
     assertThat(val).isEqualTo("negative-50");
-    val = queue.dequeue(redis, 1);
+    val = queue.dequeue(redis, 1000);
     assertThat(val).isEqualTo("negative-1");
-    val = queue.dequeue(redis, 1);
+    val = queue.dequeue(redis, 1000);
     assertThat(val).isEqualTo("foo-1");
-    val = queue.dequeue(redis, 1);
+    val = queue.dequeue(redis, 1000);
     assertThat(val).isEqualTo("baz-2");
-    val = queue.dequeue(redis, 1);
+    val = queue.dequeue(redis, 1000);
     assertThat(val).isEqualTo("foo-3");
-    val = queue.dequeue(redis, 1);
+    val = queue.dequeue(redis, 1000);
     assertThat(val).isEqualTo("foo-4");
-    val = queue.dequeue(redis, 1);
+    val = queue.dequeue(redis, 1000);
     assertThat(val).isEqualTo("foo-5");
-    val = queue.dequeue(redis, 1);
+    val = queue.dequeue(redis, 1000);
     assertThat(val).isEqualTo("foo-6");
   }
 

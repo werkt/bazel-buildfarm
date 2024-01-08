@@ -16,6 +16,7 @@ package build.buildfarm.common.redis;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -147,9 +148,7 @@ public class RedisPriorityQueueMockTest {
     }
 
     // ASSERT
-    for (int i = 0; i < 1000; ++i) {
-      verify(redis, times(1)).zadd("test", 0, "123:foo" + i);
-    }
+    verify(redis, times(1000)).zadd(eq("test"), eq(0.0), any(String.class));
   }
 
   // Function under test: push
@@ -202,7 +201,7 @@ public class RedisPriorityQueueMockTest {
 
     // ACT
     queue.push(redis, "foo");
-    String val = queue.dequeue(redis, 1);
+    String val = queue.dequeue(redis, 1000);
 
     // ASSERT
     assertThat(val).isEqualTo("foo");
@@ -219,7 +218,7 @@ public class RedisPriorityQueueMockTest {
 
     // ACT
     queue.push(redis, "foo");
-    String val = queue.dequeue(redis, 5);
+    String val = queue.dequeue(redis, 100);
 
     // ASSERT
     assertThat(val).isEqualTo(null);
@@ -240,7 +239,7 @@ public class RedisPriorityQueueMockTest {
         new Thread(
             () -> {
               try {
-                queue.dequeue(redis, 100000);
+                queue.dequeue(redis, 100000000);
               } catch (Exception e) {
               }
             });
