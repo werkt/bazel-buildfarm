@@ -23,9 +23,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.StreamSupport;
+import redis.clients.jedis.AbstractPipeline;
 import redis.clients.jedis.Connection;
 import redis.clients.jedis.JedisCluster;
-import redis.clients.jedis.PipelineBase;
 import redis.clients.jedis.Response;
 import redis.clients.jedis.UnifiedJedis;
 import redis.clients.jedis.params.ScanParams;
@@ -63,7 +63,7 @@ public class RedisMap {
    * @param name The global name of the map.
    */
   public RedisMap(String name) {
-    this(name, 86400);
+    this(name, 24 * 60 * 60);
   }
 
   /**
@@ -138,7 +138,7 @@ public class RedisMap {
    * @note Overloaded.
    */
   public void remove(UnifiedJedis jedis, Iterable<String> keys) {
-    try (PipelineBase p = jedis.pipelined()) {
+    try (AbstractPipeline p = jedis.pipelined()) {
       for (String key : keys) {
         p.del(createKeyName(key));
       }
@@ -169,7 +169,7 @@ public class RedisMap {
    */
   public Iterable<Map.Entry<String, String>> get(UnifiedJedis jedis, Iterable<String> keys) {
     // Fetch items via pipeline
-    try (PipelineBase p = jedis.pipelined()) {
+    try (AbstractPipeline p = jedis.pipelined()) {
       List<Map.Entry<String, Response<String>>> values = new ArrayList<>();
       StreamSupport.stream(keys.spliterator(), false)
           .forEach(

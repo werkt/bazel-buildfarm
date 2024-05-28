@@ -63,6 +63,7 @@ import build.bazel.remote.execution.v2.Platform.Property;
 import build.bazel.remote.execution.v2.RequestMetadata;
 import build.bazel.remote.execution.v2.ResultsCachePolicy;
 import build.bazel.remote.execution.v2.SymlinkAbsolutePathStrategy;
+import build.bazel.remote.execution.v2.ToolDetails;
 import build.buildfarm.actioncache.ActionCache;
 import build.buildfarm.actioncache.ShardActionCache;
 import build.buildfarm.backplane.Backplane;
@@ -130,12 +131,14 @@ import io.grpc.StatusException;
 import io.grpc.StatusRuntimeException;
 import io.grpc.protobuf.StatusProto;
 import io.grpc.stub.ServerCallStreamObserver;
+import io.netty.handler.codec.http.QueryStringDecoder;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Histogram;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URI;
 import java.time.Instant;
 import java.util.AbstractMap;
 import java.util.ArrayDeque;
@@ -2867,5 +2870,42 @@ public class ServerInstance extends NodeInstance {
     return super.getCacheCapabilities().toBuilder()
         .setSymlinkAbsolutePathStrategy(symlinkAbsolutePathStrategy)
         .build();
+  }
+
+  public UUID indexCorrelatedInvocations(URI uri) throws IOException {
+    // policy might not be right to apply outside of here
+    // definitely correct for directing backplane though
+    QueryStringDecoder decoder = new QueryStringDecoder(uri);
+    // FIXME could also be a part of the host, path, or query
+    UUID uuid = UUID.fromString(uri.getFragment());
+
+    // TODO stream() to select sub-map?
+    // select the url params from selector
+    Map<String, List<String>> indexScopeValues = new HashMap<>();
+
+    Set<String> indexScopes = configs.getServer().getCorrelatedInvocationsIndexScopes();
+
+    // associate url params with this correlated id
+    for (Map.Entry<String, List<String>> parameter : decoder.parameters().entrySet()) {
+      String scope = parameter.getKey();
+      if (indexScopes.contains(scope)) {
+        indexScopeValues.put(scope, parameter.getValue());
+      }
+    }
+
+    if (!indexScopeValues.isEmpty()) {
+      backplane.indexCorrelatedInvocationsId(uuid, indexScopeValues);
+    }
+
+    return uuid;
+  }
+
+  public void addToolInvocationId(UUID toolInvocationId, UUID correlatedInvocationsId, ToolDetails toolDetails) throws IOException {
+    backplane.addToolInvocationId(toolInvocationId, correlatedInvocationsId, toolDetails);
+  }
+
+  public void addRequest(String actionId, UUID toolInvocationId, String actionMnemonic, String targetId) throws IOException {
+    // TODO maybe track per server instance as well
+    backplane.incrementRequestCounters(actionId, toolInvocationId, actionMnemonic, targetId);
   }
 }

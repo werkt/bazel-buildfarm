@@ -20,7 +20,6 @@ import build.buildfarm.common.config.Queue;
 import build.buildfarm.common.redis.BalancedRedisQueue;
 import build.buildfarm.common.redis.ProvisionedRedisQueue;
 import build.buildfarm.common.redis.QueueDecorator;
-import build.buildfarm.common.redis.RedisClient;
 import build.buildfarm.common.redis.RedisHashMap;
 import build.buildfarm.common.redis.RedisHashtags;
 import build.buildfarm.common.redis.RedisMap;
@@ -35,18 +34,18 @@ import java.util.List;
 import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;
 import org.redisson.config.Config;
+import redis.clients.jedis.UnifiedJedis;
 
 public class DistributedStateCreator {
   private static BuildfarmConfigs configs = BuildfarmConfigs.getInstance();
 
-  public static DistributedState create(RedisClient client) throws IOException {
+  public static DistributedState create(UnifiedJedis jedis) {
     DistributedState state = new DistributedState();
 
     // Create containers that make up the backplane
-    state.casWorkerMap = createCasWorkerMap();
     state.actionCache = createActionCache();
-    state.prequeue = createPrequeue(client);
-    state.operationQueue = createOperationQueue(client);
+    state.prequeue = createPrequeue(jedis);
+    state.operationQueue = createOperationQueue(jedis);
     state.blockedActions = new RedisMap(configs.getBackplane().getActionBlacklistPrefix());
     state.blockedInvocations = new RedisMap(configs.getBackplane().getInvocationBlacklistPrefix());
     state.operations =
@@ -61,21 +60,12 @@ public class DistributedStateCreator {
         new RedisHashMap(configs.getBackplane().getWorkersHashName() + "_execute");
     state.storageWorkers =
         new RedisHashMap(configs.getBackplane().getWorkersHashName() + "_storage");
+    state.correlatedInvocationsIndex = new CorrelatedInvocationsIndex(
+        configs.getBackplane().getCorrelatedInvocationsIndexPrefix(), configs.getBackplane().getMaxCorrelatedInvocationsIndexTimeout());
+    state.correlatedInvocations = new CorrelatedInvocations(
+        configs.getBackplane().getCorrelatedInvocationsPrefix(), configs.getBackplane().getMaxCorrelatedInvocationsTimeout());
 
     return state;
-  }
-
-  private static CasWorkerMap createCasWorkerMap() {
-    if (configs.getBackplane().isCacheCas()) {
-      RedissonClient redissonClient = createRedissonClient();
-      return new RedissonCasWorkerMap(
-          redissonClient,
-          configs.getBackplane().getCasPrefix(),
-          configs.getBackplane().getCasExpire());
-    } else {
-      return new JedisCasWorkerMap(
-          configs.getBackplane().getCasPrefix(), configs.getBackplane().getCasExpire());
-    }
   }
 
   private static RedisMap createActionCache() {
@@ -87,16 +77,16 @@ public class DistributedStateCreator {
     return Redisson.create(redissonConfig);
   }
 
-  private static BalancedRedisQueue createPrequeue(RedisClient client) throws IOException {
+  private static BalancedRedisQueue createPrequeue(UnifiedJedis jedis) {
     // Construct the prequeue so that elements are balanced across all redis nodes.
     return new BalancedRedisQueue(
         getPreQueuedOperationsListName(),
-        getQueueHashes(client, getPreQueuedOperationsListName()),
+        getQueueHashes(jedis, getPreQueuedOperationsListName()),
         configs.getBackplane().getMaxPreQueueDepth(),
         getQueueDecorator());
   }
 
-  private static OperationQueue createOperationQueue(RedisClient client) throws IOException {
+  private static OperationQueue createOperationQueue(UnifiedJedis jedis) {
     // Construct an operation queue based on configuration.
     // An operation queue consists of multiple provisioned queues in which the order dictates the
     // eligibility and placement of operations.
@@ -108,7 +98,7 @@ public class DistributedStateCreator {
           new ProvisionedRedisQueue(
               getQueueName(queueConfig),
               getQueueDecorator(),
-              getQueueHashes(client, getQueueName(queueConfig)),
+              getQueueHashes(jedis, getQueueName(queueConfig)),
               toMultimap(queueConfig.getPlatform().getPropertiesList()),
               queueConfig.isAllowUnmatched());
       provisionedQueues.add(provisionedQueue);
@@ -128,7 +118,7 @@ public class DistributedStateCreator {
           new ProvisionedRedisQueue(
               getQueuedOperationsListName(),
               getQueueDecorator(),
-              getQueueHashes(client, getQueuedOperationsListName()),
+              getQueueHashes(jedis, getQueuedOperationsListName()),
               defaultProvisions);
       provisionedQueues.add(defaultQueue);
     }
@@ -136,11 +126,8 @@ public class DistributedStateCreator {
     return new OperationQueue(provisionedQueues.build(), configs.getBackplane().getMaxQueueDepth());
   }
 
-  static List<String> getQueueHashes(RedisClient client, String queueName) throws IOException {
-    return client.call(
-        jedis ->
-            RedisNodeHashes.getEvenlyDistributedHashesWithPrefix(
-                jedis, RedisHashtags.existingHash(queueName)));
+  static List<String> getQueueHashes(UnifiedJedis jedis, String queueName) {
+    return RedisNodeHashes.getEvenlyDistributedHashesWithPrefix(jedis, RedisHashtags.existingHash(queueName));
   }
 
   private static SetMultimap<String, String> toMultimap(List<Platform.Property> provisions) {

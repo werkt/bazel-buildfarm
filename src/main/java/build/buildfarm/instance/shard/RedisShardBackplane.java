@@ -25,6 +25,7 @@ import build.bazel.remote.execution.v2.ExecuteOperationMetadata;
 import build.bazel.remote.execution.v2.ExecutionStage;
 import build.bazel.remote.execution.v2.Platform;
 import build.bazel.remote.execution.v2.RequestMetadata;
+import build.bazel.remote.execution.v2.ToolDetails;
 import build.buildfarm.backplane.Backplane;
 import build.buildfarm.common.BuildfarmExecutors;
 import build.buildfarm.common.CasIndexResults;
@@ -84,6 +85,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
@@ -524,7 +526,7 @@ public class RedisShardBackplane implements Backplane {
 
   private void start(RedisClient client, String clientPublicName) throws IOException {
     // Create containers that make up the backplane
-    start(client, DistributedStateCreator.create(client), clientPublicName);
+    start(client, client.call(jedis -> DistributedStateCreator.create(jedis)), clientPublicName);
   }
 
   @VisibleForTesting
@@ -726,9 +728,14 @@ public class RedisShardBackplane implements Backplane {
     }
   }
 
+  private CasWorkerMap createCasWorkerMap(UnifiedJedis jedis) {
+    return new JedisCasWorkerMap(
+        jedis, configs.getBackplane().getCasPrefix(), configs.getBackplane().getCasExpire());
+  }
+
   @Override
   public long getDigestInsertTime(Digest blobDigest) throws IOException {
-    return state.casWorkerMap.insertTime(client, blobDigest);
+    return client.call(jedis -> createCasWorkerMap(jedis).insertTime(blobDigest));
   }
 
   private synchronized Set<String> getExecuteWorkers() throws IOException {
@@ -894,44 +901,44 @@ public class RedisShardBackplane implements Backplane {
   @Override
   public void adjustBlobLocations(
       Digest blobDigest, Set<String> addWorkers, Set<String> removeWorkers) throws IOException {
-    state.casWorkerMap.adjust(client, blobDigest, addWorkers, removeWorkers);
+    client.run(jedis -> createCasWorkerMap(jedis).adjust(blobDigest, addWorkers, removeWorkers));
   }
 
   @Override
   public void addBlobLocation(Digest blobDigest, String workerName) throws IOException {
-    state.casWorkerMap.add(client, blobDigest, workerName);
+    client.run(jedis -> createCasWorkerMap(jedis).add(blobDigest, workerName));
   }
 
   @Override
   public void addBlobsLocation(Iterable<Digest> blobDigests, String workerName) throws IOException {
-    state.casWorkerMap.addAll(client, blobDigests, workerName);
+    client.run(jedis -> createCasWorkerMap(jedis).addAll(blobDigests, workerName));
   }
 
   @Override
   public void removeBlobLocation(Digest blobDigest, String workerName) throws IOException {
-    state.casWorkerMap.remove(client, blobDigest, workerName);
+    client.run(jedis -> createCasWorkerMap(jedis).remove(blobDigest, workerName));
   }
 
   @Override
   public void removeBlobsLocation(Iterable<Digest> blobDigests, String workerName)
       throws IOException {
-    state.casWorkerMap.removeAll(client, blobDigests, workerName);
+    client.run(jedis -> createCasWorkerMap(jedis).removeAll(blobDigests, workerName));
   }
 
   @Override
   public String getBlobLocation(Digest blobDigest) throws IOException {
-    return state.casWorkerMap.getAny(client, blobDigest);
+    return client.call(jedis -> createCasWorkerMap(jedis).getAny(blobDigest));
   }
 
   @Override
   public Set<String> getBlobLocationSet(Digest blobDigest) throws IOException {
-    return state.casWorkerMap.get(client, blobDigest);
+    return client.call(jedis -> createCasWorkerMap(jedis).get(blobDigest));
   }
 
   @Override
   public Map<Digest, Set<String>> getBlobDigestsWorkers(Iterable<Digest> blobDigests)
       throws IOException {
-    return state.casWorkerMap.getMap(client, blobDigests);
+    return client.call(jedis -> createCasWorkerMap(jedis).getMap(blobDigests));
   }
 
   public static WorkerChange parseWorkerChange(String workerChangeJson)
@@ -1451,6 +1458,32 @@ public class RedisShardBackplane implements Backplane {
 
   @Override
   public void updateDigestsExpiry(Iterable<Digest> digests) throws IOException {
-    state.casWorkerMap.setExpire(client, digests);
+    client.run(jedis -> createCasWorkerMap(jedis).setExpire(digests));
+  }
+
+  @Override
+  public void indexCorrelatedInvocationsId(UUID correlatedInvocationsId, Map<String, List<String>> indexScopeValues) throws IOException {
+    client.run(
+      jedis -> {
+        for (Map.Entry<String, List<String>> entry : indexScopeValues.entrySet()) {
+          for (String key : entry.getValue()) {
+            state.correlatedInvocationsIndex.add(jedis, entry.getKey(), key, correlatedInvocationsId);
+          }
+        }
+      });
+  }
+
+  @Override
+  public void addToolInvocationId(UUID toolInvocationId, UUID correlatedInvocationsId, ToolDetails toolDetails) throws IOException {
+    client.run(
+      jedis -> {
+        state.correlatedInvocations.add(jedis, correlatedInvocationsId, toolInvocationId);
+        // TODO maybe index by toolDetails
+      });
+  }
+
+  @Override
+  public void incrementRequestCounters(String actionId, UUID toolInvocationId, String actionMnemonic, String targetId) {
+    // TODO count for each of these fields
   }
 }

@@ -40,6 +40,10 @@ public class Backplane {
   private String dispatchedOperationsHashName = "DispatchedOperations";
   private String operationChannelPrefix = "OperationChannel";
   private String casPrefix = "ContentAddressableStorage";
+  private String correlatedInvocationsIndexPrefix = "CorrelatedInvocationIndex";
+  private int maxCorrelatedInvocationsIndexTimeout = 3 * 24 * 60 * 60; // 3 Days
+  private String correlatedInvocationsPrefix = "CorrelatedInvocation";
+  private int maxCorrelatedInvocationsTimeout = 7 * 24 * 60 * 60; // 1 Week
   private int casExpire = 604800; // 1 Week
   private int maxInvocationIdTimeout = 604800;
 

@@ -27,6 +27,7 @@ java_library(
         "@maven//:io_grpc_grpc_core",
         "@maven//:io_grpc_grpc_protobuf",
         "@maven//:io_grpc_grpc_stub",
+        "@maven//:io_netty_netty_codec_http",
         "@maven//:io_prometheus_simpleclient",
         "@maven//:net_javacrumbs_future_converter_future_converter_java8_guava",
         "@maven//:org_apache_commons_commons_pool2",

@@ -19,6 +19,7 @@ import build.bazel.remote.execution.v2.Digest;
 import build.bazel.remote.execution.v2.ExecutionStage;
 import build.bazel.remote.execution.v2.Platform;
 import build.bazel.remote.execution.v2.RequestMetadata;
+import build.bazel.remote.execution.v2.ToolDetails;
 import build.buildfarm.common.CasIndexResults;
 import build.buildfarm.common.DigestUtil.ActionKey;
 import build.buildfarm.common.Watcher;
@@ -36,6 +37,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import lombok.Data;
 import net.jcip.annotations.ThreadSafe;
 
@@ -276,4 +278,10 @@ public interface Backplane {
 
   /** Set expiry time for digests */
   void updateDigestsExpiry(Iterable<Digest> digests) throws IOException;
+
+  void indexCorrelatedInvocationsId(UUID correlatedInvocationsId, Map<String, List<String>> indexScopeValues) throws IOException;
+
+  void addToolInvocationId(UUID toolInvocationId, UUID correlatedInvocationsId, ToolDetails toolDetails) throws IOException;
+
+  void incrementRequestCounters(String actionId, UUID toolInvocationId, String actionMnemonic, String targetId) throws IOException;
 }

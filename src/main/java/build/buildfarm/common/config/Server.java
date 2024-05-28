@@ -1,6 +1,8 @@
 package build.buildfarm.common.config;
 
+import com.google.common.collect.ImmutableSet;
 import java.util.UUID;
+import java.util.Set;
 import lombok.Data;
 import lombok.extern.java.Log;
 
@@ -44,6 +46,7 @@ public class Server {
   private ServerCacheConfigs caches = new ServerCacheConfigs();
   private boolean findMissingBlobsViaBackplane = false;
   private int gracefulShutdownSeconds = 0;
+  private Set<String> correlatedInvocationsIndexScopes = ImmutableSet.of("user");
 
   public String getSession() {
     return String.format("buildfarm-server-%s-%s", getPublicName(), sessionGuid);
