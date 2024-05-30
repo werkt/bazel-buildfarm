@@ -17,6 +17,7 @@ package build.buildfarm.instance.shard;
 import build.buildfarm.common.redis.BalancedRedisQueue;
 import build.buildfarm.common.redis.RedisHashMap;
 import build.buildfarm.common.redis.RedisMap;
+import build.buildfarm.common.redis.RedisSetMap;
 
 /**
  * @class DistributedState
@@ -120,7 +121,9 @@ public class DistributedState {
    */
   public RedisMap blockedActions;
 
-  public CorrelatedInvocations correlatedInvocations;
+  public RedisSetMap toolInvocations;
 
-  public CorrelatedInvocationsIndex correlatedInvocationsIndex;
+  public RedisSetMap correlatedInvocations;
+
+  public RedisSetMap correlatedInvocationsIndex;
 }

@@ -23,6 +23,7 @@ import build.buildfarm.common.redis.QueueDecorator;
 import build.buildfarm.common.redis.RedisHashMap;
 import build.buildfarm.common.redis.RedisHashtags;
 import build.buildfarm.common.redis.RedisMap;
+import build.buildfarm.common.redis.RedisSetMap;
 import build.buildfarm.common.redis.RedisNodeHashes;
 import build.buildfarm.common.redis.RedisPriorityQueue;
 import build.buildfarm.common.redis.RedisQueue;
@@ -48,8 +49,10 @@ public class DistributedStateCreator {
     state.operationQueue = createOperationQueue(jedis);
     state.blockedActions = new RedisMap(configs.getBackplane().getActionBlacklistPrefix());
     state.blockedInvocations = new RedisMap(configs.getBackplane().getInvocationBlacklistPrefix());
+    state.toolInvocations = new RedisSetMap(configs.getBackplane().getToolInvocationsPrefix(), configs.getBackplane().getMaxToolInvocationTimeout(), /* expireOnEach=*/ false);
     state.operations =
         new Operations(
+            state.toolInvocations,
             configs.getBackplane().getOperationPrefix(),
             configs.getBackplane().getOperationExpire());
     state.processingOperations = new RedisMap(configs.getBackplane().getProcessingPrefix());
@@ -60,10 +63,10 @@ public class DistributedStateCreator {
         new RedisHashMap(configs.getBackplane().getWorkersHashName() + "_execute");
     state.storageWorkers =
         new RedisHashMap(configs.getBackplane().getWorkersHashName() + "_storage");
-    state.correlatedInvocationsIndex = new CorrelatedInvocationsIndex(
-        configs.getBackplane().getCorrelatedInvocationsIndexPrefix(), configs.getBackplane().getMaxCorrelatedInvocationsIndexTimeout());
-    state.correlatedInvocations = new CorrelatedInvocations(
-        configs.getBackplane().getCorrelatedInvocationsPrefix(), configs.getBackplane().getMaxCorrelatedInvocationsTimeout());
+    state.correlatedInvocationsIndex = new RedisSetMap(
+        configs.getBackplane().getCorrelatedInvocationsIndexPrefix(), configs.getBackplane().getMaxCorrelatedInvocationsIndexTimeout(), /* expireOnEach=*/ true);
+    state.correlatedInvocations = new RedisSetMap(
+        configs.getBackplane().getCorrelatedInvocationsPrefix(), configs.getBackplane().getMaxCorrelatedInvocationsTimeout(), /* expireOnEach=*/ true);
 
     return state;
   }

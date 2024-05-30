@@ -55,7 +55,7 @@ public class RedisMap {
    * @details The map can be initialized with a default expiration. In doing so, expirations can be
    *     omitted from calls to insert.
    */
-  private final int expiration_s;
+  protected final int expiration_s;
 
   /**
    * @brief Constructor.
@@ -210,12 +210,12 @@ public class RedisMap {
   /**
    * @brief Create the key name used in redis.
    * @details The key name is made more unique by leveraging the map's name.
-   * @param keyName The name of the key.
+   * @param key The name of the key.
    * @return The key name to use in redis.
-   * @note Suggested return identifier: redisKeyName.
+   * @note Suggested return identifier: keyName.
    */
-  private String createKeyName(String keyName) {
-    return name + ":" + keyName;
+  protected String createKeyName(String key) {
+    return name + ":" + key;
   }
 
   public ScanResult<String> scan(UnifiedJedis jedis, String mapCursor, int count) {

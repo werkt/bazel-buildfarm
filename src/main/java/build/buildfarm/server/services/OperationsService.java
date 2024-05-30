@@ -49,12 +49,18 @@ public class OperationsService extends OperationsGrpc.OperationsImplBase {
       pageSize = LIST_OPERATIONS_DEFAULT_PAGE_SIZE;
     }
 
+    // locate index
+    String name = request.getName();
+    if (name.startsWith(instance.getName() + "/")) {
+      name = name.substring(instance.getName().length() + 1);
+    }
+
     // TODO make async
     try {
       ListOperationsResponse.Builder response = ListOperationsResponse.newBuilder();
       response.setNextPageToken(
           instance.listOperations(
-              pageSize, request.getPageToken(), request.getFilter(), response::addOperations));
+              name, pageSize, request.getPageToken(), request.getFilter(), response::addOperations));
       responseObserver.onNext(response.build());
       responseObserver.onCompleted();
     } catch (IOException e) {

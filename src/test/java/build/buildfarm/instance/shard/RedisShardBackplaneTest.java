@@ -131,7 +131,7 @@ public class RedisShardBackplaneTest {
     final String opName = "op";
     ExecuteEntry executeEntry = ExecuteEntry.newBuilder().setOperationName(opName).build();
     Operation op = Operation.newBuilder().setName(opName).build();
-    backplane.prequeue(executeEntry, op);
+    backplane.prequeue(executeEntry, UUID.fromString(executeEntry.getRequestMetadata().getToolInvocationId()), op);
 
     verify(state.operations, times(1))
         .insert(

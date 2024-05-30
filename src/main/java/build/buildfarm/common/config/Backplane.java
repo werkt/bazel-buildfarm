@@ -30,6 +30,7 @@ public class Backplane {
   private String invocationBlacklistPrefix = "InvocationBlacklist";
   private String operationPrefix = "Operation";
   private int operationExpire = 604800; // 1 Week
+  private String toolInvocationsPrefix = "ToolInvocation";
   private String preQueuedOperationsListName = "{Arrival}:PreQueuedOperations";
   private String processingListName = "{Arrival}:ProcessingOperations";
   private String processingPrefix = "Processing";
@@ -40,12 +41,12 @@ public class Backplane {
   private String dispatchedOperationsHashName = "DispatchedOperations";
   private String operationChannelPrefix = "OperationChannel";
   private String casPrefix = "ContentAddressableStorage";
-  private String correlatedInvocationsIndexPrefix = "CorrelatedInvocationIndex";
+  private String correlatedInvocationsIndexPrefix = "CorrelatedInvocationsIndex";
   private int maxCorrelatedInvocationsIndexTimeout = 3 * 24 * 60 * 60; // 3 Days
   private String correlatedInvocationsPrefix = "CorrelatedInvocation";
   private int maxCorrelatedInvocationsTimeout = 7 * 24 * 60 * 60; // 1 Week
   private int casExpire = 604800; // 1 Week
-  private int maxInvocationIdTimeout = 604800;
+  private int maxToolInvocationTimeout = 604800;
 
   @Getter(AccessLevel.NONE)
   private boolean subscribeToBackplane = true; // deprecated

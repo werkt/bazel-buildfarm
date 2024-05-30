@@ -88,7 +88,19 @@ public interface Backplane {
 
   void deregisterWorker(String hostName) throws IOException;
 
-  ScanResult<Operation> findOperationsByInvocationId(String invocationId, String cursor, int count)
+  ScanResult<Operation> scanOperations(String toolInvocationId, String cursor, int count)
+      throws IOException;
+
+  ScanResult<String> scanToolInvocations(String correlatedInvocationsId, String cursor, int count)
+      throws IOException;
+
+  ScanResult<String> scanCorrelatedInvocations(String scope, String value, String cursor, int count)
+      throws IOException;
+
+  ScanResult<String> scanCorrelatedInvocationIndexKeys(String cursor, int count)
+      throws IOException;
+
+  ScanResult<String> scanCorrelatedInvocationIndexEntries(String cursor, int count)
       throws IOException;
 
   /** Returns a map of the worker name and its start time for given workers. */
@@ -242,17 +254,20 @@ public interface Backplane {
   void deleteOperation(String operationName) throws IOException;
 
   /** Register a watcher for an operation */
-  ListenableFuture<Void> watchOperation(String operationName, Watcher watcher);
+  ListenableFuture<Void> watchExecution(String executionName, Watcher watcher);
 
   /** Page all dispatched operations */
-  ScanResult<DispatchedOperation> getDispatchedOperations(String cursor, int count)
+  ScanResult<DispatchedOperation> scanDispatchedOperations(String cursor, int count)
       throws IOException;
 
   /** Page all operations */
-  ScanResult<Operation> getOperations(String cursor, int count) throws IOException;
+  ScanResult<Operation> scanOperations(String cursor, int count) throws IOException;
 
-  /** Retrieve a set of known operations */
-  Iterable<Operation> getOperations(Iterable<String> operationIds) throws IOException;
+  /** Page all correlatedInvocations */
+  ScanResult<String> scanCorrelatedInvocations(String cursor, int count) throws IOException;
+
+  /** Page all toolInvocations */
+  ScanResult<String> scanToolInvocations(String cursor, int count) throws IOException;
 
   /** Requeue a dispatched operation */
   void requeueDispatchedOperation(QueueEntry queueEntry) throws IOException;

@@ -46,7 +46,7 @@ public class Server {
   private ServerCacheConfigs caches = new ServerCacheConfigs();
   private boolean findMissingBlobsViaBackplane = false;
   private int gracefulShutdownSeconds = 0;
-  private Set<String> correlatedInvocationsIndexScopes = ImmutableSet.of("user");
+  private Set<String> correlatedInvocationsIndexScopes = ImmutableSet.of("host", "username");
 
   public String getSession() {
     return String.format("buildfarm-server-%s-%s", getPublicName(), sessionGuid);
