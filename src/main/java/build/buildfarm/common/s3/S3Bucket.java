@@ -229,26 +229,22 @@ public class S3Bucket {
     }
 
     // decode secret
-    String secret;
-    if (getSecretValueResult.getSecretString() != null) {
-      secret = getSecretValueResult.getSecretString();
-    } else {
+    String secret = getSecretValueResult.getSecretString();
+    if (getSecretValueResult.getSecretString() == null) {
       secret =
           new String(Base64.getDecoder().decode(getSecretValueResult.getSecretBinary()).array());
     }
 
     // extract access keys
-    if (secret != null) {
-      try {
-        final ObjectMapper objectMapper = new ObjectMapper();
-        final HashMap<String, String> secretMap = objectMapper.readValue(secret, HashMap.class);
+    try {
+      final ObjectMapper objectMapper = new ObjectMapper();
+      final HashMap<String, String> secretMap = objectMapper.readValue(secret, HashMap.class);
 
-        final String accessKeyId = secretMap.get("access_key");
-        final String secretKey = secretMap.get("secret_key");
-        return AwsSecret.newBuilder().setAccessKeyId(accessKeyId).setSecretKey(secretKey).build();
-      } catch (IOException e) {
-        log.log(Level.SEVERE, String.format("Could not parse secret %s from AWS", secretName));
-      }
+      final String accessKeyId = secretMap.get("access_key");
+      final String secretKey = secretMap.get("secret_key");
+      return AwsSecret.newBuilder().setAccessKeyId(accessKeyId).setSecretKey(secretKey).build();
+    } catch (IOException e) {
+      log.log(Level.SEVERE, String.format("Could not parse secret %s from AWS", secretName));
     }
 
     return null;

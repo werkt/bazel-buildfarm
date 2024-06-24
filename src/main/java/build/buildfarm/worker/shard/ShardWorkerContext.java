@@ -18,6 +18,7 @@ import static build.buildfarm.cas.ContentAddressableStorage.UNLIMITED_ENTRY_SIZE
 import static build.buildfarm.common.Actions.checkPreconditionFailure;
 import static build.buildfarm.common.Errors.VIOLATION_TYPE_INVALID;
 import static build.buildfarm.common.Errors.VIOLATION_TYPE_MISSING;
+import static build.buildfarm.common.io.Utils.isExecutable;
 import static build.buildfarm.worker.DequeueMatchEvaluator.shouldKeepOperation;
 import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.DAYS;
@@ -681,14 +682,12 @@ class ShardWorkerContext implements WorkerContext {
               return;
             }
 
-            // should we cast to PosixFilePermissions and do gymnastics there for executable?
-
             // TODO symlink per revision proposal
             currentDirectory.addFile(
                 FileNode.newBuilder()
                     .setName(file.getFileName().toString())
                     .setDigest(digest)
-                    .setIsExecutable(Files.isExecutable(file))
+                    .setIsExecutable(isExecutable(attrs))
                     .build());
             try {
               insertFile(digest, getDigestUtil().getDigestFunction(), file);

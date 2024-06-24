@@ -2051,6 +2051,8 @@ public abstract class CASFileCache implements ContentAddressableStorage {
 
   @GuardedBy("this")
   private ListenableFuture<Void> expireDirectory(Digest digest, ExecutorService service) {
+    Path path = getDirectoryPath(digest);
+    locks.release(path);
     DirectoryEntry e = directoryStorage.remove(digest);
     if (e == null) {
       log.log(
@@ -2059,7 +2061,7 @@ public abstract class CASFileCache implements ContentAddressableStorage {
       return immediateFuture(null);
     }
 
-    return Directories.remove(getDirectoryPath(digest), fileStore, service);
+    return Directories.remove(path, fileStore, service);
   }
 
   @SuppressWarnings("ConstantConditions")

@@ -34,6 +34,7 @@ import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.DosFileAttributes;
 import java.nio.file.attribute.PosixFileAttributes;
+import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.UserPrincipal;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -418,9 +419,17 @@ public class Utils {
   }
 
   /* Testing if path is a directory */
-  public static Boolean isDir(String path) {
+  public static boolean isDir(String path) {
     File f = new File(path);
     return f.isDirectory();
+  }
+
+  /* BasicFileAttributes decomposition for executable */
+  public static boolean isExecutable(BasicFileAttributes attrs) {
+    if (attrs instanceof PosixFileAttributes posix) {
+      return posix.permissions().contains(PosixFilePermission.OWNER_EXECUTE);
+    }
+    return false;
   }
 
   @SuppressWarnings("OctalInteger")
