@@ -16,6 +16,7 @@ package build.buildfarm.tools;
 
 import static build.bazel.remote.execution.v2.ExecutionStage.Value.EXECUTING;
 import static build.buildfarm.common.grpc.Channels.createChannel;
+import static build.buildfarm.common.grpc.TracingMetadataUtils.attachMetadataInterceptor;
 import static build.buildfarm.common.io.Utils.stat;
 import static build.buildfarm.instance.stub.ByteStreamUploader.uploadResourceName;
 import static com.google.common.base.Preconditions.checkState;
@@ -37,6 +38,7 @@ import build.bazel.remote.execution.v2.ExecutionGrpc;
 import build.bazel.remote.execution.v2.ExecutionGrpc.ExecutionStub;
 import build.bazel.remote.execution.v2.FindMissingBlobsRequest;
 import build.bazel.remote.execution.v2.FindMissingBlobsResponse;
+import build.bazel.remote.execution.v2.RequestMetadata;
 import build.buildfarm.common.DigestUtil;
 import build.buildfarm.common.Size;
 import build.buildfarm.common.io.FileStatus;
@@ -78,6 +80,7 @@ class Executor {
     private final ExecutionStub execStub;
     private final String instanceName;
     private final Digest actionDigest;
+    private final String mnemonic;
     private final Stopwatch stopwatch;
     private final ScheduledExecutorService service;
 
@@ -91,18 +94,25 @@ class Executor {
         ExecutionStub execStub,
         String instanceName,
         Digest actionDigest,
+        String mnemonic,
         ScheduledExecutorService service) {
       this.countdown = countdown;
       this.statusCounts = statusCounts;
       this.execStub = execStub;
       this.instanceName = instanceName;
       this.actionDigest = actionDigest;
+      this.mnemonic = mnemonic;
       this.service = service;
       stopwatch = Stopwatch.createStarted();
     }
 
     void execute() {
-      execStub.execute(
+      RequestMetadata requestMetadata = RequestMetadata.newBuilder()
+          .setActionMnemonic(mnemonic)
+          .build();
+      execStub
+          .withInterceptors(attachMetadataInterceptor(requestMetadata))
+          .execute(
           ExecuteRequest.newBuilder()
               .setInstanceName(instanceName)
               .setActionDigest(DigestUtil.toDigest(actionDigest))
@@ -110,7 +120,7 @@ class Executor {
               .setSkipCacheLookup(true)
               .build(),
           this);
-      noticeFuture = service.schedule(this::printStillWaiting, 30, SECONDS);
+      // noticeFuture = service.schedule(this::printStillWaiting, 30, SECONDS);
     }
 
     void print(int code, String responseType, long micros) {
@@ -125,7 +135,7 @@ class Executor {
 
     void printStillWaiting() {
       if (!complete) {
-        noticeFuture = service.schedule(this::printStillWaiting, 30, SECONDS);
+        // noticeFuture = service.schedule(this::printStillWaiting, 30, SECONDS);
         if (operationName == null) {
           System.out.println("StillWaitingFor Operation => " + DigestUtil.toString(actionDigest));
         } else {
@@ -136,7 +146,7 @@ class Executor {
 
     @Override
     public void onNext(Operation operation) {
-      noticeFuture.cancel(false);
+      // noticeFuture.cancel(false);
       if (operationName == null) {
         operationName = operation.getName();
       }
@@ -150,7 +160,7 @@ class Executor {
           if (code == Code.OK.getNumber()) {
             responseType += " exit code " + response.getResult().getExitCode();
           }
-          print(code, responseType, micros);
+          // print(code, responseType, micros);
           statusCounts[code].incrementAndGet();
         } catch (InvalidProtocolBufferException e) {
           System.err.println(
@@ -168,16 +178,16 @@ class Executor {
           System.err.println(
               "An unlikely error has occurred for " + operationName + ": " + e.getMessage());
         }
-        noticeFuture = service.schedule(this::printStillWaiting, 30, SECONDS);
+        // noticeFuture = service.schedule(this::printStillWaiting, 30, SECONDS);
       } else {
-        noticeFuture = service.schedule(this::printStillWaiting, 30, SECONDS);
+        // noticeFuture = service.schedule(this::printStillWaiting, 30, SECONDS);
       }
     }
 
     @Override
     public void onError(Throwable t) {
       complete = true;
-      noticeFuture.cancel(false);
+      // noticeFuture.cancel(false);
       long micros = stopwatch.elapsed(MICROSECONDS);
       int code = io.grpc.Status.fromThrowable(t).getCode().value();
       print(code, "error", micros);
@@ -188,13 +198,13 @@ class Executor {
     @Override
     public void onCompleted() {
       complete = true;
-      noticeFuture.cancel(false);
+      // noticeFuture.cancel(false);
       countdown.decrementAndGet();
     }
   }
 
   static void executeActions(
-      String instanceName, List<Digest> actionDigests, ExecutionStub execStub)
+      String instanceName, List<Digest> actionDigests, String mnemonic, ExecutionStub execStub)
       throws InterruptedException {
     ScheduledExecutorService service = newSingleThreadScheduledExecutor();
 
@@ -206,9 +216,8 @@ class Executor {
     for (Digest actionDigest : actionDigests) {
       ExecutionObserver executionObserver =
           new ExecutionObserver(
-              countdown, statusCounts, execStub, instanceName, actionDigest, service);
+              countdown, statusCounts, execStub, instanceName, actionDigest, mnemonic, service);
       executionObserver.execute();
-      MICROSECONDS.sleep(1);
     }
     while (countdown.get() != 0) {
       SECONDS.sleep(1);
@@ -410,10 +419,14 @@ class Executor {
     String host = args[0];
     String instanceName = args[1];
     String blobsDir;
-    if (args.length == 3) {
+    if (args.length >= 3) {
       blobsDir = args[2];
     } else {
       blobsDir = null;
+    }
+    String mnemonic = "";
+    if (args.length == 4) {
+      mnemonic = args[3];
     }
 
     Scanner scanner = new Scanner(System.in);
@@ -432,7 +445,7 @@ class Executor {
 
     ExecutionStub execStub = ExecutionGrpc.newStub(channel);
 
-    executeActions(instanceName, actionDigests.build(), execStub);
+    executeActions(instanceName, actionDigests.build(), mnemonic, execStub);
 
     channel.shutdown();
     channel.awaitTermination(1, SECONDS);

@@ -1401,7 +1401,7 @@ public class RedisShardBackplane implements Backplane {
   @SuppressWarnings("ConstantConditions")
   @Override
   public boolean canPrequeue() throws IOException {
-    return client.call(jedis -> state.prequeue.canQueue(jedis));
+    return true; // return client.call(jedis -> state.prequeue.canQueue(jedis));
   }
 
   @SuppressWarnings("ConstantConditions")

@@ -35,6 +35,7 @@ import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static com.google.common.util.concurrent.Futures.transform;
 import static com.google.common.util.concurrent.Futures.transformAsync;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
+import static com.google.common.util.concurrent.MoreExecutors.listeningDecorator;
 import static java.lang.String.format;
 import static java.util.concurrent.Executors.newSingleThreadExecutor;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
@@ -495,8 +496,23 @@ public class ServerInstance extends NodeInstance {
                   stopwatch.stop();
                   ExecuteEntry executeEntry = backplane.deprequeueOperation();
                   stopwatch.start();
+                  if (executeEntry.getRequestMetadata().getActionMnemonic().equals("buildfarm:halt-on-deprequeue")) {
+                    return listeningDecorator(operationTransformService).submit(() -> {
+                        try {
+                          backplane.putOperation(Operation.newBuilder()
+                              .setName(executeEntry.getOperationName())
+                              .setDone(true)
+                              .setMetadata(Any.pack(ExecuteOperationMetadata.getDefaultInstance()))
+                              .setResponse(Any.pack(ExecuteResponse.getDefaultInstance()))
+                              .build(), ExecutionStage.Value.COMPLETED);
+                        } catch (IOException e) {
+                          throw Status.fromThrowable(e).asRuntimeException();
+                        }
+                        return null;
+                    });
+                  }
                   if (executeEntry == null) {
-                    log.log(Level.SEVERE, "OperationQueuer: Got null from deprequeue...");
+                    // log.log(Level.SEVERE, "OperationQueuer: Got null from deprequeue...");
                     return immediateFuture(null);
                   }
                   // half the watcher expiry, need to expose this from backplane
@@ -639,11 +655,13 @@ public class ServerInstance extends NodeInstance {
   }
 
   private void ensureCanQueue(Stopwatch stopwatch) throws IOException, InterruptedException {
+        /*
     while (!backplane.canQueue()) {
       stopwatch.stop();
       TimeUnit.MILLISECONDS.sleep(100);
       stopwatch.start();
     }
+    */
   }
 
   @Override
@@ -2248,8 +2266,18 @@ public class ServerInstance extends NodeInstance {
               .build();
       Operation operation =
           Operation.newBuilder().setName(executionName).setMetadata(Any.pack(metadata)).build();
+      if (requestMetadata.getActionMnemonic().equals("buildfarm:halt-on-execute")) {
+        operation = operation.toBuilder()
+            .setDone(true)
+            .setMetadata(Any.pack(ExecuteOperationMetadata.getDefaultInstance()))
+            .setResponse(Any.pack(ExecuteResponse.getDefaultInstance()))
+            .build();
+      }
       try {
         watcher.observe(operation);
+        if (operation.getDone()) {
+          return immediateFuture(null);
+        }
       } catch (Exception e) {
         return immediateFailedFuture(e);
       }

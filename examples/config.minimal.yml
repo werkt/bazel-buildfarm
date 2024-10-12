@@ -9,3 +9,4 @@ backplane:
           value: "*"
 worker:
   publicName: "localhost:8981"
+  reportResultStageWidth: 10

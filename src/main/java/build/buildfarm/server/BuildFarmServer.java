@@ -17,6 +17,8 @@ package build.buildfarm.server;
 import static build.buildfarm.common.io.Utils.formatIOError;
 import static com.google.common.util.concurrent.MoreExecutors.shutdownAndAwaitTermination;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
+import static java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor; // doesn't work
+import static java.util.concurrent.Executors.newWorkStealingPool;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.logging.Level.SEVERE;
 import static java.util.logging.Level.WARNING;
@@ -50,6 +52,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.security.Security;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -69,6 +72,7 @@ public class BuildFarmServer extends LoggingMain {
           .register();
 
   private final ScheduledExecutorService keepaliveScheduler = newSingleThreadScheduledExecutor();
+  private final ExecutorService serverExecutorService = newWorkStealingPool(128);
   private Instance instance;
   private HealthStatusManager healthStatusManager;
   private io.grpc.Server server;
@@ -150,6 +154,7 @@ public class BuildFarmServer extends LoggingMain {
     }
 
     serverBuilder
+        .executor(serverExecutorService)
         .addService(healthStatusManager.getHealthService())
         .addService(new ActionCacheService(instance))
         .addService(new CapabilitiesService(instance))
@@ -225,6 +230,9 @@ public class BuildFarmServer extends LoggingMain {
     }
     if (!shutdownAndAwaitTermination(keepaliveScheduler, 10, TimeUnit.SECONDS)) {
       log.warning("could not shut down keepalive scheduler");
+    }
+    if (!shutdownAndAwaitTermination(serverExecutorService, 10, TimeUnit.SECONDS)) {
+      log.warning("could not shut down server executor service");
     }
     if (invocationsCollector != null) {
       invocationsCollector.clear();
