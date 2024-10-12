@@ -642,6 +642,7 @@ public final class Worker extends LoggingMain {
             backplane::pollExecution,
             configs.getWorker().getInputFetchStageWidth(),
             configs.getWorker().getExecuteStageWidth(),
+            configs.getWorker().getReportResultStageWidth(),
             configs.getWorker().getInputFetchDeadline(),
             backplane,
             execFileSystem,
