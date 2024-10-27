@@ -17,7 +17,7 @@ public class Backplane {
   }
 
   private BACKPLANE_TYPE type = BACKPLANE_TYPE.SHARD;
-  private String redisUri;
+  private URI redisUri;
   private int jedisPoolMaxTotal = 4000;
   private String workersHashName = "Workers";
   private String workerChannel = "WorkerChannel";
@@ -90,21 +90,21 @@ public class Backplane {
    * @return The redis URI but the password will be hidden, or <c>null</c> if unset.
    */
   public @Nullable String getRedisUriMasked() {
-    String uri = getRedisUri();
+    URI uri = getRedisUri();
     if (uri == null) {
       return null;
     }
     try {
-      URI redisProperUri = URI.create(uri);
-      String password = JedisURIHelper.getPassword(redisProperUri);
-      if (Strings.isNullOrEmpty(password)) {
-        return uri;
+      String userInfo = JedisURIHelper.getPassword(uri);
+      if (Strings.isNullOrEmpty(userInfo)) {
+        return uri.toString();
       }
-      return uri.replace(password, "<HIDDEN>");
+      String user = JedisURIHelper.getUser(uri);
+      return uri.toString().replace(userInfo, user + ":<HIDDEN>");
     } catch (ArrayIndexOutOfBoundsException e) {
       // JedisURIHelper.getPassword did not find the password (e.g. only username in
       // uri.getUserInfo)
-      return uri;
+      return uri.toString();
     }
   }
 
@@ -119,10 +119,9 @@ public class Backplane {
    * @return The redis username, or <c>null</c> if unset.
    */
   public @Nullable String getRedisUsername() {
-    String r = getRedisUri();
-    if (r != null) {
-      URI redisProperUri = URI.create(r);
-      String username = JedisURIHelper.getUser(redisProperUri);
+    URI uri = getRedisUri();
+    if (uri != null) {
+      String username = JedisURIHelper.getUser(uri);
       if (!Strings.isNullOrEmpty(username)) {
         return username;
       }
@@ -143,14 +142,10 @@ public class Backplane {
    * @return The redis password, or <c>null</c> if unset.
    */
   public @Nullable String getRedisPassword() {
-    String r = getRedisUri();
-    if (r == null) {
-      return null;
-    }
     try {
-      URI redisProperUri = URI.create(r);
-      if (!Strings.isNullOrEmpty(JedisURIHelper.getPassword(redisProperUri))) {
-        return JedisURIHelper.getPassword(redisProperUri);
+      String password = JedisURIHelper.getPassword(getRedisUri());
+      if (!Strings.isNullOrEmpty(password)) {
+        return password;
       }
     } catch (ArrayIndexOutOfBoundsException e) {
       // JedisURIHelper.getPassword did not find the password (e.g. only username in

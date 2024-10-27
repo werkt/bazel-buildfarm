@@ -76,7 +76,7 @@ public class JedisClusterFactory {
 
     // support "" as redis password.
     return createJedisClusterFactory(
-        parseUri(configs.getBackplane().getRedisUri()),
+        configs.getBackplane().getRedisUri(),
         createJedisConfig(identifier),
         createConnectionPoolConfig());
   }
@@ -227,27 +227,20 @@ public class JedisClusterFactory {
     builder.socketTimeoutMillis(Integer.max(2000, backplane.getTimeout()));
     builder.clientName(identifier);
 
-    if (!Strings.isNullOrEmpty(backplane.getRedisUri())) {
-      try {
-        URI redisUri = parseUri(backplane.getRedisUri());
-        boolean ssl = JedisURIHelper.isRedisSSLScheme(redisUri);
+    URI redisUri = backplane.getRedisUri();
+    if (redisUri != null) {
+      boolean ssl = JedisURIHelper.isRedisSSLScheme(redisUri);
 
-        builder.ssl(ssl);
+      builder.ssl(ssl);
 
-        if (!Strings.isNullOrEmpty(configs.getBackplane().getRedisCertificateAuthorityFile())) {
-          checkState(
-              ssl,
-              "Can't specify a Certificate Authority file if you aren't using redis with SSL. Did"
-                  + " you set 'rediss://' scheme on your Redis URI?");
-          builder.sslSocketFactory(
-              RedisSSL.createSslSocketFactory(
-                  new File(backplane.getRedisCertificateAuthorityFile())));
-        }
-
-      } catch (ConfigurationException ce) {
-        // redis URI was malformed. Assume NOT tls-redis.
-        log.log(Level.WARNING, "Redis URI malformed. Assuming NOT TLS", ce);
-        builder.ssl(false);
+      if (!Strings.isNullOrEmpty(configs.getBackplane().getRedisCertificateAuthorityFile())) {
+        checkState(
+            ssl,
+            "Can't specify a Certificate Authority file if you aren't using redis with SSL. Did"
+                + " you set 'rediss://' scheme on your Redis URI?");
+        builder.sslSocketFactory(
+            RedisSSL.createSslSocketFactory(
+                new File(backplane.getRedisCertificateAuthorityFile())));
       }
     }
 
@@ -264,22 +257,6 @@ public class JedisClusterFactory {
       builder.password(Strings.emptyToNull(backplane.getRedisPassword()));
     }
     return builder.build();
-  }
-
-  /**
-   * @brief Parse string URI into URI object.
-   * @details Convert the string representation of the URI into a URI object. If the URI object is
-   *     invalid a configuration exception will be thrown.
-   * @param uri A uri.
-   * @return A parsed and valid URI.
-   * @note Suggested return identifier: uri.
-   */
-  private static URI parseUri(String uri) throws ConfigurationException {
-    try {
-      return new URI(uri);
-    } catch (URISyntaxException e) {
-      throw new ConfigurationException(e.getMessage());
-    }
   }
 
   /**

@@ -10,6 +10,8 @@ import com.google.devtools.common.options.OptionsParsingException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -50,6 +52,22 @@ public final class BuildfarmConfigs {
     return buildfarmConfigs;
   }
 
+  /**
+   * @brief Parse string URI into URI object.
+   * @details Convert the string representation of the URI into a URI object. If the URI object is
+   *     invalid a configuration exception will be thrown.
+   * @param uri A uri.
+   * @return A parsed and valid URI.
+   * @note Suggested return identifier: uri.
+   */
+  private static URI parseUri(String uri) throws ConfigurationException {
+    try {
+      return new URI(uri);
+    } catch (URISyntaxException e) {
+      throw new ConfigurationException(e.getMessage());
+    }
+  }
+
   public static BuildfarmConfigs loadConfigs(Path configLocation) throws IOException {
     try (InputStream inputStream = Files.newInputStream(configLocation)) {
       Yaml yaml = new Yaml(new Constructor(buildfarmConfigs.getClass(), new LoaderOptions()));
@@ -81,7 +99,7 @@ public final class BuildfarmConfigs {
       buildfarmConfigs.setPrometheusPort(options.prometheusPort);
     }
     if (!Strings.isNullOrEmpty(options.redisUri)) {
-      buildfarmConfigs.getBackplane().setRedisUri(options.redisUri);
+      buildfarmConfigs.getBackplane().setRedisUri(parseUri(options.redisUri));
     }
     adjustServerConfigs(buildfarmConfigs);
     return buildfarmConfigs;
@@ -106,7 +124,7 @@ public final class BuildfarmConfigs {
       buildfarmConfigs.setPrometheusPort(options.prometheusPort);
     }
     if (!Strings.isNullOrEmpty(options.redisUri)) {
-      buildfarmConfigs.getBackplane().setRedisUri(options.redisUri);
+      buildfarmConfigs.getBackplane().setRedisUri(parseUri(options.redisUri));
     }
     if (!Strings.isNullOrEmpty(options.root)) {
       buildfarmConfigs.getWorker().setRoot(options.root);
@@ -145,7 +163,7 @@ public final class BuildfarmConfigs {
     return Path.of(residue.getFirst());
   }
 
-  private static void adjustServerConfigs(BuildfarmConfigs configs) {
+  private static void adjustServerConfigs(BuildfarmConfigs configs) throws ConfigurationException {
     configs
         .getServer()
         .setPublicName(
@@ -153,7 +171,7 @@ public final class BuildfarmConfigs {
     adjustRedisUri(configs);
   }
 
-  private static void adjustWorkerConfigs(BuildfarmConfigs configs) {
+  private static void adjustWorkerConfigs(BuildfarmConfigs configs) throws ConfigurationException {
     configs
         .getWorker()
         .setPublicName(
@@ -234,10 +252,10 @@ public final class BuildfarmConfigs {
     return publicName;
   }
 
-  private static void adjustRedisUri(BuildfarmConfigs configs) {
+  private static void adjustRedisUri(BuildfarmConfigs configs) throws ConfigurationException {
     // use environment override (useful for containerized deployment)
     if (!Strings.isNullOrEmpty(System.getenv("REDIS_URI"))) {
-      configs.getBackplane().setRedisUri(System.getenv("REDIS_URI"));
+      configs.getBackplane().setRedisUri(parseUri(System.getenv("REDIS_URI")));
       log.info(
           String.format("RedisUri modified to %s", configs.getBackplane().getRedisUriMasked()));
     }
