@@ -20,7 +20,9 @@ import static build.buildfarm.common.io.Utils.formatIOError;
 import static build.buildfarm.common.io.Utils.getUser;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.util.concurrent.MoreExecutors.shutdownAndAwaitTermination;
 import static java.util.concurrent.Executors.newSingleThreadExecutor;
+import static java.util.concurrent.Executors.newWorkStealingPool;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.logging.Level.INFO;
 import static java.util.logging.Level.SEVERE;
@@ -138,6 +140,7 @@ public final class Worker extends LoggingMain {
 
   private final HealthStatusManager healthStatusManager = new HealthStatusManager();
 
+  private final ExecutorService serverExecutorService = newWorkStealingPool(128);
   private Server server;
   private Path root;
   private ExecFileSystem execFileSystem;
@@ -219,11 +222,13 @@ public final class Worker extends LoggingMain {
       Instance instance,
       Pipeline pipeline,
       ShardWorkerContext context) {
-    serverBuilder.addService(healthStatusManager.getHealthService());
-    serverBuilder.addService(new ContentAddressableStorageService(instance));
-    serverBuilder.addService(new ByteStreamService(instance));
-    serverBuilder.addService(new ShutDownWorkerGracefully(this));
-    serverBuilder.addService(ProtoReflectionService.newInstance());
+    serverBuilder
+        .executor(serverExecutorService)
+        .addService(healthStatusManager.getHealthService())
+        .addService(new ContentAddressableStorageService(instance))
+        .addService(new ByteStreamService(instance))
+        .addService(new ShutDownWorkerGracefully(this))
+        .addService(ProtoReflectionService.newInstance());
 
     // We will build a worker's server based on it's capabilities.
     // A worker that is capable of execution will construct an execution pipeline.
@@ -764,6 +769,9 @@ public final class Worker extends LoggingMain {
         server.shutdownNow();
       }
       server = null;
+    }
+    if (!shutdownAndAwaitTermination(serverExecutorService, 10, SECONDS)) {
+      log.warning("could not shut down server executor service");
     }
     if (backplane != null) {
       try {
