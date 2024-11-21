@@ -37,6 +37,7 @@ import build.buildfarm.server.services.FetchService;
 import build.buildfarm.server.services.OperationQueueService;
 import build.buildfarm.server.services.OperationsService;
 import build.buildfarm.server.services.PublishBuildEventService;
+import io.grpc.HttpRequest;
 import io.grpc.ServerBuilder;
 import io.grpc.ServerInterceptor;
 import io.grpc.health.v1.HealthCheckResponse.ServingStatus;
@@ -49,6 +50,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.nio.file.Paths;
 import java.security.Security;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -277,8 +279,13 @@ public class BuildFarmServer extends LoggingMain {
     }
 
     try {
+      StaticFileHandler staticFileHandler = new StaticFileHandler(Paths.get("/home/werkt/dev/buildfarm/public"));
       server.start(
-          NettyServerBuilder.forAddress(socketAddress), configs.getServer().getPublicName());
+          NettyServerBuilder.forAddress(socketAddress)
+              .addHttpHandler(HttpRequest.Method.GET, "/", staticFileHandler.fileHandler("/index.html"))
+              .addHttpHandler(HttpRequest.Method.GET, "/favicon.ico", staticFileHandler.fileHandler("/favicon.ico"))
+              .addHttpHandler(HttpRequest.Method.GET, "/js/**", staticFileHandler),
+          configs.getServer().getPublicName());
       server.awaitTermination();
     } catch (IOException e) {
       log.severe("error: " + formatIOError(e));

@@ -10,7 +10,12 @@ bazel_dep(name = "bazel_skylib", version = "1.7.1")
 bazel_dep(name = "blake3", version = "1.5.4")
 bazel_dep(name = "buildifier_prebuilt", version = "7.3.1")
 bazel_dep(name = "gazelle", version = "0.40.0")
-bazel_dep(name = "grpc-java", version = "1.67.1")
+bazel_dep(name = "grpc-java") # , version = "1.67.1")
+local_path_override(
+    module_name = "grpc-java",
+    path = "/home/werkt/dev/grpc-java",
+)
+bazel_dep(name = "gonzojive_protobuf_javascript", version = "3.21.5.esm")
 bazel_dep(name = "googleapis", version = "0.0.0-20240819-fe8ba054a")
 bazel_dep(name = "grpc-proto", version = "0.0.0-20240627-ec30f58", repo_name = "io_grpc_grpc_proto")
 bazel_dep(name = "hermetic_cc_toolchain", version = "3.1.1")
@@ -23,6 +28,7 @@ bazel_dep(name = "rules_jvm_external", version = "6.6")
 bazel_dep(name = "rules_license", version = "1.0.0")
 bazel_dep(name = "rules_oci", version = "2.2.0")
 bazel_dep(name = "rules_pkg", version = "1.0.1")
+multiple_version_override(module_name = "rules_pkg", versions = ["1.0.1", "0.7.0"])
 
 # Test dependencies
 bazel_dep(
@@ -113,6 +119,7 @@ maven.install(
         "io.prometheus:simpleclient:0.16.0",
         "io.prometheus:simpleclient_hotspot:0.16.0",
         "io.prometheus:simpleclient_httpserver:0.16.0",
+        "javax.activation:activation:1.1.1",
         "javax.annotation:javax.annotation-api:1.3.2",
         "me.dinowernli:java-grpc-prometheus:0.6.0",
         "net.javacrumbs.future-converter:future-converter-java8-guava:1.2.0",
@@ -239,6 +246,7 @@ googleapis_switched_rules = use_extension("@googleapis//:extensions.bzl", "switc
 googleapis_switched_rules.use_languages(
     grpc = True,
     java = True,
+    cc = True,
 )
 use_repo(googleapis_switched_rules, "com_google_googleapis_imports")
 

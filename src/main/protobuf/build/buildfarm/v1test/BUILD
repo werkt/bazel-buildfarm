@@ -1,6 +1,7 @@
 load("@grpc-java//:java_grpc_library.bzl", "java_grpc_library")
 load("@protobuf//bazel:java_proto_library.bzl", "java_proto_library")
 load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load(":js_proto_library.bzl", "js_proto_library")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -32,4 +33,19 @@ java_grpc_library(
     name = "buildfarm_java_grpc",
     srcs = [":buildfarm_proto"],
     deps = [":buildfarm_java_proto"],
+)
+
+proto_lang_toolchain(
+    name = "js_toolchain",
+    output_files = "multiple",
+    command_line = "--js_out=extension=_proto.js:$(OUT)",
+    plugin = "@gonzojive_protobuf_javascript//generator:protoc-gen-js",
+    plugin_format_flag = "--plugin=protoc-gen-js=%s",
+)
+
+js_proto_library(
+    name = "buildfarm_js_proto",
+    deps = [
+        ":buildfarm_proto",
+    ],
 )
