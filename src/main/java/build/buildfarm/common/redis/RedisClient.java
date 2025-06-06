@@ -23,10 +23,12 @@ import java.net.SocketTimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import redis.clients.jedis.UnifiedJedis;
+import redis.clients.jedis.exceptions.JedisClusterException;
 import redis.clients.jedis.exceptions.JedisClusterOperationException;
 import redis.clients.jedis.exceptions.JedisConnectionException;
 import redis.clients.jedis.exceptions.JedisDataException;
 import redis.clients.jedis.exceptions.JedisException;
+import redis.clients.jedis.exceptions.JedisMovedDataException;
 
 public class RedisClient implements Closeable {
   private static final String MISCONF_RESPONSE = "MISCONF";
@@ -56,11 +58,13 @@ public class RedisClient implements Closeable {
   }
 
   private final UnifiedJedis jedis;
+  private final Consumer<UnifiedJedis> onClusterState;
 
   private boolean closed = false;
 
-  public RedisClient(UnifiedJedis jedis) {
+  public RedisClient(UnifiedJedis jedis, Consumer<UnifiedJedis> onClusterState) {
     this.jedis = jedis;
+    this.onClusterState = onClusterState;
   }
 
   @Override
@@ -107,18 +111,47 @@ public class RedisClient implements Closeable {
     return result;
   }
 
+  private <T> T wrapClusterState(JedisContext<T> withJedis) throws IOException {
+    while (true) {
+      try {
+        return withJedis.run(jedis);
+      } catch (JedisMovedDataException e) {
+        // the cluster state is no longer current
+        // trigger a recalculation of this state
+        onClusterState.accept(jedis);
+      } catch (JedisClusterException e) {
+        if (e.getMessage().startsWith("CLUSTERDOWN")) {
+          // This *may* be permanent, and require a retry exhaustion
+          onClusterState.accept(jedis);
+        } else {
+          throw e;
+        }
+      } catch (JedisDataException e) {
+        if (e.getMessage().contains("instance state changed")) {
+          onClusterState.accept(jedis);
+        } else {
+          throw e;
+        }
+      }
+    }
+  }
+
+  private <T> T interpretMisconfResponse(JedisContext<T> withJedis) throws IOException {
+    try {
+      return withJedis.run(jedis);
+    } catch (JedisDataException e) {
+      if (e.getMessage().startsWith(MISCONF_RESPONSE)) {
+        throw new JedisMisconfigurationException(e.getMessage());
+      }
+      throw e;
+    }
+  }
+
   @SuppressWarnings("ConstantConditions")
   public <T> T call(JedisContext<T> withJedis) throws IOException {
     throwIfClosed();
     try {
-      try {
-        return withJedis.run(jedis);
-      } catch (JedisDataException e) {
-        if (e.getMessage().startsWith(MISCONF_RESPONSE)) {
-          throw new JedisMisconfigurationException(e.getMessage());
-        }
-        throw e;
-      }
+      return interpretMisconfResponse(jedis -> wrapClusterState(withJedis));
     } catch (JedisMisconfigurationException | JedisClusterOperationException e) {
       // In regards to a Jedis misconfiguration,
       // the backplane is configured not to accept writes currently

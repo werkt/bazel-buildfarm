@@ -76,20 +76,28 @@ public class RedisNodeHashes {
   public static List<String> getEvenlyDistributedHashesWithPrefix(
       UnifiedJedis jedis, String prefix) {
     if (jedis instanceof JedisCluster cluster) {
-      Iterable<List<List<Long>>> nodeSlotRanges = getNodeSlotRanges(cluster);
-      try {
-        ImmutableList.Builder<String> hashTags = ImmutableList.builder();
-        for (List<List<Long>> slotRanges : nodeSlotRanges) {
-          // we can use any slot that is in range for the node.
-          // in this case, we will use the first slot.
-          hashTags.add(RedisSlotToHash.correlateRangesWithPrefix(slotRanges, prefix));
+      return getEvenlyDistributedHashesWithPrefix(cluster, prefix);
+    }
+    return ImmutableList.of(prefix);
+  }
+
+  private static List<String> getEvenlyDistributedHashesWithPrefix(
+      JedisCluster cluster, String prefix) {
+    // there may be a period of quiescence when nodes are promoting
+    // where the slot set may not be fully accounted for
+    try {
+      ImmutableList.Builder<String> hashTags = ImmutableList.builder();
+      for (List<List<Long>> slotRanges : getNodeSlotRanges(cluster)) {
+        if (slotRanges.isEmpty()) {
+          continue;
         }
-        return hashTags.build();
-      } catch (JedisException e) {
-        return ImmutableList.of();
+        // we can use any slot that is in range for the node.
+        // in this case, we will use the first slot.
+        hashTags.add(RedisSlotToHash.correlateRangesWithPrefix(slotRanges, prefix));
       }
-    } else {
-      return ImmutableList.of(prefix);
+      return hashTags.build();
+    } catch (JedisException e) {
+      return ImmutableList.of();
     }
   }
 
@@ -101,9 +109,9 @@ public class RedisNodeHashes {
    * @note Suggested return identifier: nodeSlotRanges.
    */
   private static Iterable<List<List<Long>>> getNodeSlotRanges(UnifiedJedis jedis) {
-    if (jedis instanceof JedisCluster) {
+    if (jedis instanceof JedisCluster cluster) {
       // get slot range information for each shard
-      return transform(getClusterShards((JedisCluster) jedis), ClusterShardInfo::getSlots);
+      return transform(getClusterShards(cluster), ClusterShardInfo::getSlots);
     } else {
       return SINGLETON_NODE_SLOT_RANGES;
     }

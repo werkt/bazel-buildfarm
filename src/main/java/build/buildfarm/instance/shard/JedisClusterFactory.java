@@ -72,12 +72,15 @@ public class JedisClusterFactory {
     String[] redisNodes = configs.getBackplane().getRedisNodes();
     if (redisNodes != null && redisNodes.length > 0) {
       return createJedisClusterFactory(
-          list2Set(redisNodes), createJedisConfig(identifier), createConnectionPoolConfig());
+          parseHostAndPorts(redisNodes),
+          createJedisConfig(identifier),
+          createConnectionPoolConfig());
     }
 
     // support "" as redis password.
+    URI redisUri = parseUri(configs.getBackplane().getRedisUri());
     return createJedisClusterFactory(
-        parseUri(configs.getBackplane().getRedisUri()),
+        ImmutableSet.of(new HostAndPort(redisUri.getHost(), redisUri.getPort())),
         createJedisConfig(identifier),
         createConnectionPoolConfig());
   }
@@ -294,16 +297,12 @@ public class JedisClusterFactory {
    * @param nodes The redis nodes.
    * @return A parsed and valid HostAndPort set.
    */
-  private static Set<HostAndPort> list2Set(String[] nodes) throws ConfigurationException {
+  private static Set<HostAndPort> parseHostAndPorts(String[] nodes) throws ConfigurationException {
     Set<HostAndPort> jedisClusterNodes = new HashSet<>();
-    try {
-      for (String node : nodes) {
-        URI redisUri = new URI(node);
-        jedisClusterNodes.add(new HostAndPort(redisUri.getHost(), redisUri.getPort()));
-      }
-      return jedisClusterNodes;
-    } catch (URISyntaxException e) {
-      throw new ConfigurationException(e.getMessage());
+    for (String node : nodes) {
+      URI redisUri = parseUri(node);
+      jedisClusterNodes.add(new HostAndPort(redisUri.getHost(), redisUri.getPort()));
     }
+    return jedisClusterNodes;
   }
 }

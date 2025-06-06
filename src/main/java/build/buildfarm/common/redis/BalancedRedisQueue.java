@@ -15,6 +15,7 @@
 package build.buildfarm.common.redis;
 
 import static com.google.common.collect.Iterables.transform;
+import static com.google.common.base.Throwables.throwIfUnchecked;
 
 import build.buildfarm.common.Queue;
 import build.buildfarm.common.Visitor;

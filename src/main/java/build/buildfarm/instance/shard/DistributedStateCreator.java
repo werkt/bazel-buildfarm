@@ -38,7 +38,17 @@ public class DistributedStateCreator {
 
   public static DistributedState create(UnifiedJedis jedis) {
     DistributedState state = new DistributedState();
+    update(state, jedis);
+    return state;
+  }
 
+  public static void update(DistributedState state, UnifiedJedis jedis) {
+    synchronized (state) {
+      updateSynchronized(state, jedis);
+    }
+  }
+
+  private static void updateSynchronized(DistributedState state, UnifiedJedis jedis) {
     // Create containers that make up the backplane
     state.actionCache = createActionCache();
     state.prequeue = createPrequeue(jedis);
@@ -76,8 +86,6 @@ public class DistributedStateCreator {
             configs.getBackplane().getCorrelatedInvocationsPrefix(),
             configs.getBackplane().getMaxCorrelatedInvocationsTimeout(),
             /* expireOnEach= */ true);
-
-    return state;
   }
 
   private static RedisMap createActionCache() {

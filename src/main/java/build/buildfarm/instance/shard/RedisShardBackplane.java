@@ -525,7 +525,7 @@ public class RedisShardBackplane implements Backplane {
     // Construct a single redis client to be used throughout the entire backplane.
     // We wish to avoid various synchronous and error handling issues that could occur when using
     // multiple clients.
-    start(new RedisClient(jedisClusterFactory.get()), clientPublicName, onWorkerRemoved);
+    start(new RedisClient(jedisClusterFactory.get(), jedis -> DistributedStateCreator.update(state, jedis)), clientPublicName, onWorkerRemoved);
   }
 
   private void start(RedisClient client, String clientPublicName, Consumer<String> onWorkerRemoved)

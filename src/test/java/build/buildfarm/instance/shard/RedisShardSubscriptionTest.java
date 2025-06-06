@@ -65,7 +65,7 @@ public class RedisShardSubscriptionTest {
 
     RedisShardSubscription subscription =
         new RedisShardSubscription(
-            redisSubscriber, onUnsubscribe, onReset, () -> subscriptions, new RedisClient(jedis));
+            redisSubscriber, onUnsubscribe, onReset, () -> subscriptions, new RedisClient(jedis, j -> {}));
     final long subscribeCheckTime = 100;
 
     Thread thread = new Thread(subscription);
@@ -117,7 +117,7 @@ public class RedisShardSubscriptionTest {
             onUnsubscribe,
             onReset,
             () -> subscriptions,
-            new RedisClient(jedis));
+            new RedisClient(jedis, j -> {}));
 
     Thread thread = new Thread(subscription);
     thread.start();
@@ -165,7 +165,7 @@ public class RedisShardSubscriptionTest {
             onUnsubscribe,
             onReset,
             () -> subscriptions,
-            new RedisClient(jedis));
+            new RedisClient(jedis, j -> {}));
 
     Thread thread = new Thread(subscription);
     thread.start();
@@ -209,7 +209,7 @@ public class RedisShardSubscriptionTest {
 
     RedisShardSubscription subscription =
         new RedisShardSubscription(
-            redisSubscriber, onUnsubscribe, onReset, () -> subscriptions, new RedisClient(jedis));
+            redisSubscriber, onUnsubscribe, onReset, () -> subscriptions, new RedisClient(jedis, j -> {}));
 
     Assert.assertThrows(JedisException.class, () -> subscription.stop());
 
@@ -244,7 +244,7 @@ public class RedisShardSubscriptionTest {
             onUnsubscribe,
             onReset,
             () -> subscriptions,
-            new RedisClient(jedis));
+            new RedisClient(jedis, j -> {}));
 
     subscription.run();
 
@@ -279,7 +279,7 @@ public class RedisShardSubscriptionTest {
             onUnsubscribe,
             onReset,
             () -> subscriptions,
-            new RedisClient(jedis));
+            new RedisClient(jedis, j -> {}));
 
     subscription.run();
 

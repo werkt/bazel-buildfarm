@@ -136,7 +136,7 @@ public class RedisShardBackplaneTest {
   @Test
   public void prequeueUpdatesOperationPrequeuesAndPublishes() throws IOException {
     UnifiedJedis jedis = mock(UnifiedJedis.class);
-    RedisClient client = new RedisClient(jedis);
+    RedisClient client = new RedisClient(jedis, j -> {});
     DistributedState state = new DistributedState();
     state.executions = mock(Executions.class);
     state.prequeue = mock(BalancedRedisQueue.class);
@@ -189,7 +189,7 @@ public class RedisShardBackplaneTest {
   @Test
   public void requeueDispatchedExecutionQueuesAndPublishes() throws IOException {
     UnifiedJedis jedis = mock(UnifiedJedis.class);
-    RedisClient client = new RedisClient(jedis);
+    RedisClient client = new RedisClient(jedis, j -> {});
     DistributedState state = new DistributedState();
     state.dispatchedExecutions = mock(RedisHashMap.class);
     state.executionQueue = mock(ExecutionQueue.class);
@@ -228,7 +228,7 @@ public class RedisShardBackplaneTest {
     ClusterPipeline pipeline = mock(ClusterPipeline.class);
     Cluster jedis = mock(Cluster.class);
     when(jedis.pipelined(any(Executor.class))).thenReturn(pipeline);
-    RedisClient client = new RedisClient(jedis);
+    RedisClient client = new RedisClient(jedis, j -> {});
     DistributedState state = new DistributedState();
     state.dispatchedExecutions = mock(RedisHashMap.class);
     state.dispatchingExecutions = mock(RedisMap.class);
@@ -310,7 +310,7 @@ public class RedisShardBackplaneTest {
     ClusterPipeline pipeline = mock(ClusterPipeline.class);
     Cluster jedis = mock(Cluster.class);
     when(jedis.pipelined(any(Executor.class))).thenReturn(pipeline);
-    RedisClient client = new RedisClient(jedis);
+    RedisClient client = new RedisClient(jedis, j -> {});
     DistributedState state = new DistributedState();
     state.dispatchedExecutions = mock(RedisHashMap.class);
     state.dispatchingExecutions = mock(RedisMap.class);

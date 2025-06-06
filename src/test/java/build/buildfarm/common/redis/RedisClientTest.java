@@ -33,7 +33,7 @@ import redis.clients.jedis.exceptions.JedisConnectionException;
 public class RedisClientTest {
   @Test
   public void runExceptionEndOfStreamIsUnavailable() throws IOException, InterruptedException {
-    RedisClient client = new RedisClient(mock(JedisCluster.class));
+    RedisClient client = new RedisClient(mock(JedisCluster.class), j -> {});
     Status status = Status.UNKNOWN;
     try {
       client.run(
@@ -48,7 +48,7 @@ public class RedisClientTest {
 
   @Test
   public void runExceptionConnectionResetIsUnavailable() throws IOException, InterruptedException {
-    RedisClient client = new RedisClient(mock(JedisCluster.class));
+    RedisClient client = new RedisClient(mock(JedisCluster.class), j -> {});
     Status status = Status.UNKNOWN;
     try {
       client.run(
@@ -64,7 +64,7 @@ public class RedisClientTest {
   @Test
   public void runExceptionSocketTimeoutExceptionIsDeadlineExceeded()
       throws IOException, InterruptedException {
-    RedisClient client = new RedisClient(mock(JedisCluster.class));
+    RedisClient client = new RedisClient(mock(JedisCluster.class), j -> {});
     Status status = Status.UNKNOWN;
     try {
       client.run(
@@ -79,7 +79,7 @@ public class RedisClientTest {
 
   @Test
   public void runJedisClusterMaxAttemptsExceptionIsUnavailable() {
-    RedisClient client = new RedisClient(mock(JedisCluster.class));
+    RedisClient client = new RedisClient(mock(JedisCluster.class), j -> {});
     Status status = Status.UNKNOWN;
     try {
       JedisClusterOperationException jcoe =
