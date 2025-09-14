@@ -36,7 +36,6 @@ public class CapabilitiesService extends CapabilitiesGrpc.CapabilitiesImplBase {
   @Override
   public void getCapabilities(
       GetCapabilitiesRequest request, StreamObserver<ServerCapabilities> responseObserver) {
-    System.out.println("GOT CAPABILITIES CALLED");
     numberOfRemoteInvocations.inc();
     responseObserver.onNext(
         instance.getCapabilities().toBuilder()
