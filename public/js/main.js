@@ -11,8 +11,10 @@ var Queue = Backbone.View.extend({
   },
 
   render: function() {
-    // this.el.innerHTML = _.reduce(sizes, function(memo, ){ return memo + parseInt(num); }, 0);
-    this.el.innerHTML = this.model.get("size") ?? 0;
+    var queue = this.model.get("operationQueue");
+    if (queue != null) {
+      this.el.innerHTML = queue.size ?? 0;
+    }
     return this;
   },
 });
@@ -25,11 +27,11 @@ var Prequeue = Backbone.View.extend({
   },
 
   render: function() {
-    var queue = this.model.get("operationQueue");
+    var queue = this.model.get("prequeue");
     if (queue != null) {
       var provisions = queue.provisions;
       size = _.reduce(provisions, function(memo, provision) {
-        return _.reduce(provisions.internalSizes, function(memo, num) { return memo + parseInt(num); }, 0);
+        return _.reduce(provision.internalSizes, function(memo, num) { return memo + parseInt(num); }, 0);
       }, 0);
       this.el.innerHTML = size;
     }
