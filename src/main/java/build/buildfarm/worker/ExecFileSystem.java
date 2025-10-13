@@ -107,9 +107,9 @@ public interface ExecFileSystem extends InputStreamFactory {
   }
 
   class ExecDigestAttributes extends ExecBaseAttributes {
-    private final build.bazel.remote.execution.v2.Digest digest;
+    private final Digest digest;
 
-    ExecDigestAttributes(build.bazel.remote.execution.v2.Digest digest, ExecFileType type) {
+    ExecDigestAttributes(Digest digest, ExecFileType type) {
       super(type);
       this.digest = digest;
     }
@@ -121,14 +121,14 @@ public interface ExecFileSystem extends InputStreamFactory {
 
     @Override
     public long size() {
-      return digest.getSizeBytes();
+      return digest.getSize();
     }
   }
 
   class ExecFileAttributes extends ExecDigestAttributes {
     private final boolean isExecutable;
 
-    ExecFileAttributes(build.bazel.remote.execution.v2.Digest digest, boolean isExecutable) {
+    ExecFileAttributes(Digest digest, boolean isExecutable) {
       super(digest, ExecFileType.FILE);
       this.isExecutable = isExecutable;
     }
@@ -162,7 +162,7 @@ public interface ExecFileSystem extends InputStreamFactory {
   }
 
   class ExecDirectoryAttributes extends ExecDigestAttributes {
-    ExecDirectoryAttributes(build.bazel.remote.execution.v2.Digest digest) {
+    ExecDirectoryAttributes(Digest digest) {
       super(digest, ExecFileType.DIRECTORY);
     }
   }
