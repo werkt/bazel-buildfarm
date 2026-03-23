@@ -14,6 +14,9 @@
 
 package build.buildfarm.common.io;
 
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
+import com.sun.jna.platform.win32.Advapi32Util;
 import java.io.IOException;
 import java.nio.file.FileStore;
 import java.nio.file.Files;
@@ -35,6 +38,12 @@ public class EvenMoreFiles {
   private static final Set<PosixFilePermission> readOnlyExecPerms =
       PosixFilePermissions.fromString("r-xr-xr-x");
 
+  private static final String AUTHENTICATED_USERS_SID =
+      "S-1-5-11"; // locale-universal "Authenticated Users"
+
+  private static final Supplier<String> authenticatedUsersName =
+      Suppliers.memoize(() -> Advapi32Util.getAccountBySid(AUTHENTICATED_USERS_SID).name);
+
   public static void setReadOnlyPerms(Path path, boolean executable, FileStore fileStore)
       throws IOException {
     if (fileStore.supportsFileAttributeView("posix")) {
@@ -48,7 +57,7 @@ public class EvenMoreFiles {
       UserPrincipal authenticatedUsers =
           path.getFileSystem()
               .getUserPrincipalLookupService()
-              .lookupPrincipalByName("Authenticated Users");
+              .lookupPrincipalByName(authenticatedUsersName.get());
       AclEntry denyWriteEntry =
           AclEntry.newBuilder()
               .setType(AclEntryType.DENY)

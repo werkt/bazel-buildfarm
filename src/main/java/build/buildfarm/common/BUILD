@@ -34,6 +34,7 @@ java_library(
         "@buildfarm_maven//:io_grpc_grpc_context",
         "@buildfarm_maven//:io_grpc_grpc_protobuf",
         "@buildfarm_maven//:io_prometheus_simpleclient",
+        "@buildfarm_maven//:net_java_dev_jna_jna_platform",
         "@buildfarm_maven//:org_apache_commons_commons_compress",
         "@buildfarm_maven//:org_apache_commons_commons_pool2",
         "@buildfarm_maven//:org_projectlombok_lombok",
